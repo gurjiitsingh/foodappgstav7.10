@@ -27,6 +27,8 @@ data class PosCartEntity(
     val isVariant: Boolean,
 
     val basePrice: Double,
+   // val finalPrice: Double,
+  //  val modifierTotal: Double,
     val quantity: Int,
 
     val taxRate: Double,

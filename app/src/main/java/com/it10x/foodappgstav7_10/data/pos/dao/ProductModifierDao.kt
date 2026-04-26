@@ -22,6 +22,12 @@ interface ProductModifierDao {
     """)
     suspend fun getByProduct(productId: String): List<ProductModifierEntity>
 
+
+    @Query("""
+        SELECT * FROM product_modifiers
+        ORDER BY sortOrder ASC
+    """)
+    suspend fun getAllByProduct(): List<ProductModifierEntity>
     @Query("SELECT COUNT(*) FROM product_modifiers WHERE productId = :productId")
     suspend fun hasModifiers(productId: String): Int
 

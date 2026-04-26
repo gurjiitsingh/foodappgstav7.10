@@ -129,18 +129,36 @@ fun OrderProductRow(item: PosOrderItemEntity) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(2.dp))
-                Text("${item.quantity} × ₹${"%.2f".format(item.basePrice)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+
+                val finalPriceAndModifier = item.finalPricePerItem;
+               // Text("${item.quantity} × ₹${"%.2f".format(item.basePrice)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text("₹${"%.2f".format(item.basePrice)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+
+                val modifiers = ModifierJsonHelper.fromJson(item.modifiersJson)
+
+                modifiers.forEach { group ->
+                    group.items.forEach { mod ->
+                        Text(
+                            text = "  + ${mod.name} (+₹${"%.2f".format(mod.price)})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF616161)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(2.dp))
+                Text("GST ${item.taxRate}% (${item.taxType})", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text("${item.quantity} × ₹${"%.2f".format(finalPriceAndModifier)}")
                 if (item.isVariant && !item.parentId.isNullOrEmpty()) {
                     Spacer(Modifier.height(2.dp))
                     Text("Variant item", style = MaterialTheme.typography.labelSmall, color = Color(0xFF616161))
                 }
-                Spacer(Modifier.height(2.dp))
-                Text("GST ${item.taxRate}% (${item.taxType})", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+
+
             }
 
             Column(horizontalAlignment = Alignment.End) {
                 Text("₹${"%.2f".format(item.finalTotal)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                Text("₹${"%.2f".format(item.finalPricePerItem)} / item", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text("₹${"%.2f".format(item.finalPricePerItem)} / item * ${item.quantity}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
         }
     }

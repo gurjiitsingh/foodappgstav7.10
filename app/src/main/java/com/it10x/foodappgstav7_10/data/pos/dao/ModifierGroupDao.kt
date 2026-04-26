@@ -21,4 +21,7 @@ interface ModifierGroupDao {
         ORDER BY sortOrder ASC
     """)
     suspend fun getAll(): List<ModifierGroupEntity>
+
+    @Query("SELECT * FROM modifier_groups")
+    suspend fun getAllGroups(): List<ModifierGroupEntity>
 }

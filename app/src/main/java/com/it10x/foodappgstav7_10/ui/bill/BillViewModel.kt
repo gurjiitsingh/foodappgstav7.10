@@ -57,6 +57,7 @@ import com.it10x.foodappgstav7_10.network.model.StartTransactionRequest
 import com.it10x.foodappgstav7_10.network.model.VatAmount
 import com.it10x.foodappgstav7_10.storage.TssStorage
 import com.it10x.foodappgstav7_10.utils.MoneyUtils
+
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -440,14 +441,37 @@ class BillViewModel(
                 val itemSubtotalPaise =
                     kotItems.sumOf { MoneyUtils.toPaise(it.basePrice) * it.quantity }
 
+
+//                val rawTaxPaise = kotItems
+//                    .filter { it.taxType == "exclusive" }
+//                    .sumOf {
+//                        val basePaise = MoneyUtils.toPaise(it.basePrice)
+//                        val exactTaxPerItem = (basePaise * it.taxRate) / 100.0
+//                        exactTaxPerItem * it.quantity
+//                    }
+//                    .toLong()
+
+
                 val rawTaxPaise = kotItems
                     .filter { it.taxType == "exclusive" }
                     .sumOf {
-                        val basePaise = MoneyUtils.toPaise(it.basePrice)
+
+                        val modifierPricePerItem =
+                            ModifierJsonHelper.fromJson(it.modifiersJson)
+                                .flatMap { group -> group.items }
+                                .sumOf { item -> item.price }
+
+                        val basePlusModifier = it.basePrice + modifierPricePerItem
+
+                        val basePaise = MoneyUtils.toPaise(basePlusModifier)
+
                         val exactTaxPerItem = (basePaise * it.taxRate) / 100.0
+
                         exactTaxPerItem * it.quantity
                     }
                     .toLong()
+
+
 
                 val flatPaise = MoneyUtils.toPaise(_discountFlat.value)
                 val percentPaise =
@@ -479,15 +503,16 @@ class BillViewModel(
 
 
                 val deliveryFeePaise = MoneyUtils.toPaise(_deliveryFee.value)
-                val deliveryTaxPaise =
-                    (deliveryFeePaise * _deliveryTaxPercent.value / 100.0).roundToLong()
+                val deliveryTaxPaise = (deliveryFeePaise * _deliveryTaxPercent.value / 100.0).roundToLong()
                 val totalTaxPaise = taxAfterDiscountPaise + deliveryTaxPaise
+
+
+
                 val grandTotalPaise =
-                    itemSubtotalPaise - safeDiscountPaise + taxAfterDiscountPaise
-                itemSubtotalPaise -
-                        safeDiscountPaise +
-                        totalTaxPaise +
-                        deliveryFeePaise
+                    itemSubtotalPaise -
+                            safeDiscountPaise +
+                            totalTaxPaise +
+                            deliveryFeePaise
             // ===========================
             // PAYMENT CALCULATION
             // ===========================
@@ -617,8 +642,6 @@ class BillViewModel(
                 if (payments.size > 1) "MIXED"
                 else payments.firstOrNull()?.mode ?: "CREDIT"
 
-
-
             // ===========================
             // ORDER MASTER
             // ===========================
@@ -685,18 +708,33 @@ class BillViewModel(
 
                         val first = group.first()
                         val quantity = group.sumOf { it.quantity }
-                        val subtotal = first.basePrice * quantity
+
+                        val modifierPricePerItem =
+                            ModifierJsonHelper.fromJson(first.modifiersJson)
+                                .flatMap { it.items }
+                                .sumOf { it.price }
+                        val itemSubtotal =
+                            ((first.basePrice + modifierPricePerItem) * quantity).round(2)
+
+
+                        val basePlusModifier = first.basePrice + modifierPricePerItem
 
                         val taxPerItem =
                             if (first.taxType == "exclusive")
-                                (first.basePrice * (first.taxRate / 100))
+                                (basePlusModifier * (first.taxRate / 100))
                             else 0.0
 
-                        val taxTotalItem = (taxPerItem * quantity)
+                        val finalPricePerItem =
+                            (basePlusModifier + taxPerItem).round(2)
 
-                        val finalPricePerItem = (first.basePrice + taxPerItem).round(2)
+                        val finalTotal =
+                            (finalPricePerItem * quantity).round(2)
 
-                        val finalTotal = (subtotal + taxTotalItem).round(2)
+                        val taxTotalItem =
+                            (taxPerItem * quantity).round(2)
+
+                        val modifierTotal =
+                            (modifierPricePerItem * quantity).round(2)
 
                          PosOrderItemEntity(
                             id = UUID.randomUUID().toString(),
@@ -709,8 +747,9 @@ class BillViewModel(
                             parentId = first.parentId,
                             isVariant = first.isVariant,
                             basePrice = first.basePrice,
+                            modifierPrice = modifierTotal,
                             quantity = quantity,
-                            itemSubtotal = subtotal,
+                            itemSubtotal = itemSubtotal ,
                             // 🔹 Currency snapshot (important for audit)
                             currency = _currencySymbol.value,
                             // 🔹 Payment snapshot (do NOT rely on join later)

@@ -1,5 +1,6 @@
 package com.it10x.foodappgstav7_10.ui.pos
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,14 +14,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.it10x.foodappgstav7_10.data.pos.AppDatabaseProvider
 import com.it10x.foodappgstav7_10.data.pos.entities.PosCartEntity
 import com.it10x.foodappgstav7_10.data.pos.entities.ProductEntity
+import com.it10x.foodappgstav7_10.data.pos.model.ModifierGroupWithItems
 import com.it10x.foodappgstav7_10.ui.cart.CartViewModel
 import com.it10x.foodappgstav7_10.ui.theme.*
 import com.it10x.foodappgstav7_10.viewmodel.PosTableViewModel
+import com.it10x.foodappgstav7_10.data.pos.repository.ModifierRepository
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.google.gson.Gson
+import com.it10x.foodappgstav7_10.data.pos.models.CartModifier
+import com.it10x.foodappgstav7_10.data.pos.models.CartModifierItem
+
 
 @Composable
 fun ProductList(
@@ -32,6 +43,14 @@ fun ProductList(
     posSessionViewModel: PosSessionViewModel,
     onProductAdded: () -> Unit
 ) {
+
+    val db = AppDatabaseProvider.get(LocalContext.current)
+
+//    var hasModifiers by remember { mutableStateOf(false) }
+//
+//    LaunchedEffect(filteredProducts.productId) {
+//        hasModifiers = db.productModifierDao().hasModifiers(product.id) > 0
+//    }
 
 
     val sessionId by posSessionViewModel.sessionId.collectAsState()
@@ -102,6 +121,44 @@ private fun ParentProductCard(
     val removeBorder = PosTheme.accent.cartRemoveBorder
     val removeText = PosTheme.accent.cartRemoveText
 
+    val context = LocalContext.current
+    val db = AppDatabaseProvider.get(context)
+
+    val modifierRepo = remember {
+        ModifierRepository(db)
+    }
+    var modifierGroups by remember { mutableStateOf<List<ModifierGroupWithItems>>(emptyList()) }
+
+    LaunchedEffect(product.id) {
+        modifierGroups = modifierRepo.getModifiersForProduct(product.id)
+
+        Log.d("MOD_DEBUG", "Loaded groups: ${modifierGroups.size}")
+    }
+
+    var showModifierDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showModifierDialog) {
+
+        val allGroups = db.modifierGroupDao().getAllGroups()
+        val allItems = db.modifierItemDao().getAllItems()
+
+        Log.d("MOD_ALL", "====== ALL GROUPS ======")
+        Log.d("MOD_ALL", "Total Groups: ${allGroups.size}")
+
+        allGroups.forEach {
+            Log.d("MOD_ALL", "Group: ${it.name} | id=${it.id}")
+        }
+
+        Log.d("MOD_ALL", "====== ALL ITEMS ======")
+        Log.d("MOD_ALL", "Total Items: ${allItems.size}")
+
+        allItems.forEach {
+            Log.d("MOD_ALL", "Item: ${it.name} | groupId=${it.groupId} | price=${it.price}")
+        }
+
+
+
+    }
 
     Surface(
         modifier = Modifier
@@ -217,16 +274,25 @@ private fun ParentProductCard(
                 IconButton(
                     onClick = {
 
-                        if (product.hasVariants == true) {
-                            // 👉 STEP 1: just trigger placeholder action
-                            showVariantDialog = true   // you can use this to open box later
-                        } else {
-                            // 👉 Normal product
-                            cartViewModel.addProductToCart(
-                                product = product,
-                                price = price
-                            )
-                            onProductAdded()
+                        when {
+                            // ✅ 1. Product has variants → open variant dialog
+                            product.hasVariants == true -> {
+                                showVariantDialog = true
+                            }
+
+                            // ✅ 2. Product has modifiers → open modifier dialog
+                            modifierGroups.isNotEmpty() -> {
+                                showModifierDialog = true
+                            }
+
+                            // ✅ 3. Simple product → add directly
+                            else -> {
+                                cartViewModel.addProductToCart(
+                                    product = product,
+                                    price = price
+                                )
+                                onProductAdded()
+                            }
                         }
                     },
                     modifier = Modifier
@@ -248,152 +314,281 @@ private fun ParentProductCard(
         }
     }
 
-    if (showVariantDialog) {
 
-        var search by remember { mutableStateOf("") }
+    if (showVariantDialog || showModifierDialog) {
 
-        val filteredVariants = variants.filter {
-            it.name.contains(search, ignoreCase = true) ||
-                    (it.searchCode?.contains(search, ignoreCase = true) == true)
+        var selectedVariantId by remember { mutableStateOf<String?>(null) }
+
+        val selectedSingle = remember { mutableStateMapOf<String, String>() }
+        val selectedMulti = remember { mutableStateMapOf<String, MutableList<String>>() }
+
+        // 🔥 Base product (variant OR parent)
+        val baseProduct = variants.find { it.id == selectedVariantId } ?: product
+
+        // 🔁 Load modifiers based on selected variant OR product
+        val baseId = selectedVariantId ?: product.id
+
+        val selectedModifiersList = mutableListOf<CartModifier>()
+
+       // val modifiersJson = Gson().toJson(selectedModifiersList)
+        val modifiersJson = ModifierJsonHelper.toJson(selectedModifiersList)
+        LaunchedEffect(product.id) {
+            modifierGroups = modifierRepo.getModifiersForProduct(product.id)
         }
-        val textPrimary = MaterialTheme.colorScheme.onSurface
-        val textSecondary = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        AlertDialog(
-            onDismissRequest = { showVariantDialog = false },
 
-            // ✅ ADD THIS BUTTON
+        AlertDialog(
+            onDismissRequest = {
+                showVariantDialog = false
+                showModifierDialog = false
+            },
+            containerColor = Color(0xFF1E293B),
+
             confirmButton = {
+
+                val isVariantRequired = product.hasVariants == true
+                val isVariantSelected = selectedVariantId != null
+
                 Button(
                     onClick = {
+
+                        var extraPrice = 0.0
+
+                        val selectedModifiersList = mutableListOf<CartModifier>()
+
+                        modifierGroups.forEach { group ->
+
+                            val selectedItems = mutableListOf<CartModifierItem>()
+
+                            // 🔘 Single select
+                            selectedSingle[group.group.id]?.let { itemId ->
+                                val item = group.items.find { it.id == itemId }
+                                if (item != null) {
+                                    extraPrice += item.price
+
+                                    selectedItems.add(
+                                        CartModifierItem(
+                                            itemId = item.id,
+                                            name = item.name,
+                                            price = item.price
+                                        )
+                                    )
+                                }
+                            }
+
+                            // ☑️ Multi select
+                            selectedMulti[group.group.id]?.forEach { itemId ->
+                                val item = group.items.find { it.id == itemId }
+                                if (item != null) {
+                                    extraPrice += item.price
+
+                                    selectedItems.add(
+                                        CartModifierItem(
+                                            itemId = item.id,
+                                            name = item.name,
+                                            price = item.price
+                                        )
+                                    )
+                                }
+                            }
+
+                            // ✅ Add group only if it has items
+                            if (selectedItems.isNotEmpty()) {
+
+                                // 🔥 IMPORTANT: sort to avoid duplicate cart rows
+                                selectedItems.sortBy { it.itemId }
+
+                                selectedModifiersList.add(
+                                    CartModifier(
+                                        groupId = group.group.id,
+                                        groupName = group.group.name,
+                                        items = selectedItems
+                                    )
+                                )
+                            }
+                        }
+
+                        // 🔥 IMPORTANT: sort groups also
+                        selectedModifiersList.sortBy { it.groupId }
+
+                        val modifiersJson = ModifierJsonHelper.toJson(selectedModifiersList)
+
+                        val finalPrice = baseProduct.price + extraPrice
+
+                        // 🚀 SEND TO CART
+                        cartViewModel.addProductToCart(
+                            product = baseProduct,
+                            price = finalPrice,
+                            modifiersJson = modifiersJson   // ✅ NOW IT WORKS
+                        )
+
                         showVariantDialog = false
+                        showModifierDialog = false
+
                         onProductAdded()
-                    }
+                    },
+                    enabled = !isVariantRequired || isVariantSelected
                 ) {
-                    Text("OK")
+                    Text("Add")
                 }
             },
 
             title = {
-                Text("Select")
+                Text("Customize ${product.name}")
             },
 
             text = {
-                Column {
 
-                    // 🔍 SEARCH BOX
-//                    OutlinedTextField(
-//                        value = search,
-//                        onValueChange = { search = it },
-//                        placeholder = { Text("Search variant...") },
-//                        modifier = Modifier.fillMaxWidth()
-//                    )
-//
-//                    Spacer(modifier = Modifier.height(10.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 500.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
 
-                    // 📦 VARIANT LIST
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 300.dp)
-                    ) {
+                    // =========================
+                    // ✅ VARIANT SECTION
+                    // =========================
+                    if (product.hasVariants == true && variants.isNotEmpty()) {
 
-                        filteredVariants.forEach { variant ->
+                        Text(
+                            text = "Select Variant",
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 6.dp)
+                        )
+
+                        variants.forEach { variant ->
 
                             val variantPrice =
                                 if (variant.discountPrice == null || variant.discountPrice == 0.0)
                                     variant.price
                                 else variant.discountPrice
 
-                            val cartItems by cartViewModel.cart.collectAsState()
-
-                            val qty = cartItems
-                                .filter { it.productId == variant.id && it.tableId == tableNo }
-                                .sumOf { it.quantity }
-
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                    .padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
 
+                                RadioButton(
+                                    selected = selectedVariantId == variant.id,
+                                    onClick = {
+                                        selectedVariantId = variant.id
+                                    }
+                                )
+
                                 Column(modifier = Modifier.weight(1f)) {
+                                    Text(variant.name)
                                     Text(
-                                        text = variant.name,
-                                        color = Color.White, // ✅ WHITE TEXT
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        text = "₹$variantPrice",
-                                        color = Color.White.copy(alpha = 0.7f),
-                                        fontSize = 13.sp
+                                        "₹$variantPrice",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
                                     )
                                 }
+                            }
+                        }
 
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    }
 
-                                    // ➖ MINUS
-                                    IconButton(
-                                        onClick = {
-                                            if (qty > 0) {
-                                                cartViewModel.decrease(variant.id, tableNo)
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .size(34.dp)
-                                            .background(
-                                                PosTheme.accent.cartRemoveBorder, // ✅ FROM THEME
-                                                RoundedCornerShape(6.dp)
-                                            )
-                                    ) {
-                                        Text(
-                                            "−", // ✅ real minus symbol (NOT underscore)
-                                            color = PosTheme.accent.cartRemoveText,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
+                    // =========================
+                    // ✅ MODIFIER SECTION
+                    // =========================
+                    if (modifierGroups.isEmpty()) {
+                        Text("No customization available")
+                    } else {
+
+                        modifierGroups.forEach { group ->
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
 
                                     Text(
-                                        text = qty.toString(),
-                                        modifier = Modifier.padding(horizontal = 14.dp),
-                                        color = Color.White, // ✅ WHITE
+                                        text = group.group.name,
                                         fontWeight = FontWeight.Bold
                                     )
 
-                                    // ➕ PLUS
-                                    IconButton(
-                                        onClick = {
-                                            cartViewModel.addProductToCart(
-                                                product = variant,
-                                                price = variantPrice
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .size(34.dp)
-                                            .background(
-                                                PosTheme.accent.cartAddBg, // ✅ FROM THEME
-                                                RoundedCornerShape(6.dp)
-                                            )
-                                    ) {
-                                        Text(
-                                            "+",
-                                            color = PosTheme.accent.cartAddText, // ✅ FROM THEME
-                                            fontSize = 18.sp
-                                        )
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    group.items.forEach { item ->
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+
+                                            val isSingle = group.group.maxSelection == 1
+
+                                            if (isSingle) {
+                                                RadioButton(
+                                                    selected = selectedSingle[group.group.id] == item.id,
+                                                    onClick = {
+                                                        selectedSingle[group.group.id] = item.id
+                                                    }
+                                                )
+                                            } else {
+
+                                                val selectedList =
+                                                    selectedMulti.getOrPut(group.group.id) { mutableListOf() }
+
+                                                Checkbox(
+                                                    checked = selectedList.contains(item.id),
+                                                    onCheckedChange = { isChecked ->
+
+                                                        if (isChecked) {
+                                                            if (selectedList.size < group.group.maxSelection) {
+                                                                selectedList.add(item.id)
+                                                            }
+                                                        } else {
+                                                            selectedList.remove(item.id)
+                                                        }
+                                                    }
+                                                )
+                                            }
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(item.name)
+                                                Text(
+                                                    "₹${item.price}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = Color.Gray
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-
                             }
-                            Divider(
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                thickness = 0.8.dp
-                            )
                         }
                     }
+
+                    // =========================
+                    // 💰 LIVE TOTAL (OPTIONAL 🔥)
+                    // =========================
+                    val extraPrice = selectedSingle.values.sumOf { id ->
+                        modifierGroups.flatMap { it.items }.find { it.id == id }?.price ?: 0.0
+                    } + selectedMulti.values.flatten().sumOf { id ->
+                        modifierGroups.flatMap { it.items }.find { it.id == id }?.price ?: 0.0
+                    }
+
+                    val total = baseProduct.price + extraPrice
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Total: ₹$total",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
             }
         )

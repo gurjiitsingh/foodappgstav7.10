@@ -19,6 +19,7 @@ import com.it10x.foodappgstav7_10.data.pos.manager.TableSyncManager
 import com.it10x.foodappgstav7_10.fiskaly.FiskalyService
 import com.it10x.foodappgstav7_10.fiskaly.FiskalyServiceFactory
 
+
 sealed class CartUiEvent {
     object SessionRequired : CartUiEvent()
     object TableRequired : CartUiEvent()   // ✅ ADD THIS
@@ -33,22 +34,6 @@ class CartViewModel(
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-
-// TO CHECK INIT DATA
-//    init {
-//        Log.d(
-//            "CART_VM",
-//            "CartViewModel CREATED hash=${this.hashCode()}"
-//        )
-//    }
-// ---------- ORDER CONTEXT ----------
-
-//val country = ClientConfigStorage.getCountry(context)
-
-
-//    private val fiskalyService: FiskalyService by lazy {
-//        FiskalyServiceFactory.create(app, "DE")
-//    }
 
 
 
@@ -114,8 +99,23 @@ class CartViewModel(
     // ---------- MUTATIONS ----------
     fun addProductToCart(
         product: ProductEntity,
-        price: Double
+        price: Double,
+        modifiersJson: String = ""
     ) {
+        Log.d(
+            "MODI",
+            "${modifiersJson}"
+        )
+
+        val modifierTotal = ModifierJsonHelper
+            .fromJson(modifiersJson)
+            .sumOf { group ->
+                group.items.sumOf { it.price }
+            }
+       val finalPrice = price + modifierTotal
+
+
+
 
         viewModelScope.launch {
             Log.d(
@@ -139,17 +139,15 @@ class CartViewModel(
                     ?: category?.kitchenPrintReq
                     ?: true
 
-//            Log.d(
-//                "ORDER_ITEM_DEBUG",
-//                "productId=${product.id}, categoryId=${product.categoryId}, categoryName=${category}, name=${product.name}"
-//            )
+
 
             val cartItem = PosCartEntity(
                 productId = product.id,
                 name = toTitleCase(product.name),
                 basePrice = price,
+              //  finalPrice = finalPrice,
                 note = "",
-                modifiersJson = "",
+                modifiersJson = modifiersJson,
                 quantity = 1,
                 taxRate = product.taxRate ?: 0.0,
                 taxType = product.taxType ?: "inclusive",
@@ -219,16 +217,7 @@ class CartViewModel(
             repository.increaseById(item.id, item.tableId!!)
         }
     }
-//    fun decrease(productId: String, tableNo: String) {
-//        if (!canMutateCart()) return
-//
-//        viewModelScope.launch {
-//            repository.decrease(productId, tableNo)
-//
-//            // ✅ single source of truth
-//           // tableReleaseUseCase.releaseIfOrderingAndCartEmpty(tableNo)
-//        }
-//    }
+
 
 
     fun decrease(productId: String, tableNo: String) {
@@ -257,38 +246,7 @@ class CartViewModel(
     }
 
 
-//    fun initSession(orderType: String, tableId: String? = null) {
-//
-//        val resolvedTableId = when (orderType) {
-//            "DINE_IN" -> tableId
-//            "TAKEAWAY" -> tableId
-//            "DELIVERY" -> tableId
-//            else -> null
-//        }
-//
-//
-//        if (resolvedTableId.isNullOrBlank()) {
-//            Log.e("CART_DEBUG", "initSession FAILED: tableId null for $orderType")
-//            return
-//        }
-//
-//        // ✅ PREVENT DUPLICATE SESSION CREATION
-//        if (
-//            sessionId.value != null &&
-//            currentOrderType.value == orderType &&
-//            currentTableId.value == resolvedTableId
-//        ) {
-//           // Log.d("CART_DEBUG", "initSession skipped (already active)")
-//            return
-//        }
-//
-//        val sid = "$orderType-$resolvedTableId-${System.currentTimeMillis()}"
-//
-//
-//        savedStateHandle["orderType"] = orderType
-//        savedStateHandle["tableId"] = resolvedTableId
-//        savedStateHandle["sessionId"] = sid
-//    }
+
 
     fun initSession(orderType: String, tableId: String? = null) {
 
@@ -319,23 +277,7 @@ class CartViewModel(
         savedStateHandle["tableId"] = resolvedTableId
         savedStateHandle["sessionId"] = sid
 
-        // 🔥🔥🔥 ADD THIS BLOCK (THIS WAS MISSING)
-//        viewModelScope.launch {
-//
-//            Log.d("FISKALY", "initSession → calling Fiskaly")
-//
-//            if (!fiskalyService.isEnabled()) {
-//                Log.d("FISKALY", "Fiskaly disabled, skipping")
-//                return@launch
-//            }
-//
-//            val txnId = fiskalyService.startTransaction(
-//                sessionId = sid,
-//                amount = 0.0
-//            )
-//
-//            Log.d("FISKALY", "Transaction started: $txnId")
-//        }
+
     }
 
     private fun cartScopeKey(): String? {

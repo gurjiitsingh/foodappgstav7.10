@@ -412,8 +412,12 @@ private fun AddressField(
 
 fun parseModifiers(json: String): List<String> {
     return try {
-        val array = org.json.JSONArray(json)
-        List(array.length()) { array.getString(it) }
+        ModifierJsonHelper.fromJson(json)
+            .flatMap { group ->
+                group.items.map { item ->
+                    "${item.name} (+${"%.2f".format(item.price)})"
+                }
+            }
     } catch (e: Exception) {
         emptyList()
     }

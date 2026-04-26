@@ -58,6 +58,9 @@ data class PosOrderItemEntity(
 
     val note: String,
     val modifiersJson: String,
+    val modifierPrice: Double,
+    val modifierSummary: String = "",
+
     // =====================================================
     // FINAL VALUES (NEVER RECALCULATE)
     // =====================================================

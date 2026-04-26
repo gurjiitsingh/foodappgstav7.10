@@ -22,4 +22,7 @@ interface ModifierItemDao {
         ORDER BY sortOrder ASC
     """)
     suspend fun getByGroup(groupId: String): List<ModifierItemEntity>
+
+    @Query("SELECT * FROM modifier_items")
+    suspend fun getAllItems(): List<ModifierItemEntity>
 }
