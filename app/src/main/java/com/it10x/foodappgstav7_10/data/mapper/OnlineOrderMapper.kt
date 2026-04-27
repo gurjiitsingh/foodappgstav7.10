@@ -39,6 +39,8 @@ object OnlineOrderMapper {
                 isVariant = false,
 
                 basePrice = item.priceDouble(),
+                finalPrice = 0.0,
+                modifierTotal = 0.0,
                 quantity = item.quantity,
 
                 taxRate = (item.taxRate as? Number)?.toDouble() ?: 0.0,

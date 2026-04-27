@@ -50,8 +50,23 @@ fun KitchenScreen(
     }
 
     // ---------- Totals calculation ----------
-    val subTotal = cartItems.sumOf { it.basePrice * it.quantity }
-    val totalTax = cartItems.sumOf { ((it.basePrice * it.taxRate) / 100) * it.quantity }
+    val subTotal = cartItems.sumOf { item ->
+        val price = if (item.finalPrice > 0) item.finalPrice else item.basePrice
+        price * item.quantity
+    }
+
+    val totalTax = cartItems.sumOf { item ->
+        val price = if (item.finalPrice > 0) item.finalPrice else item.basePrice
+
+        val tax = if (item.taxType == "inclusive") {
+            price - (price / (1 + item.taxRate / 100))
+        } else {
+            (price * item.taxRate) / 100
+        }
+
+        tax * item.quantity
+    }
+
     val grandTotal = subTotal + totalTax
 
     // ---------- Layout ----------
@@ -155,6 +170,30 @@ fun KitchenScreen(
         }
     }
 }
+
+fun parseModifierPrice(modifiersJson: String?): Double {
+    if (modifiersJson.isNullOrEmpty()) return 0.0
+
+    return try {
+        val jsonArray = org.json.JSONArray(modifiersJson)
+        var total = 0.0
+
+        for (i in 0 until jsonArray.length()) {
+            val group = jsonArray.getJSONObject(i)
+            val items = group.optJSONArray("items") ?: continue
+
+            for (j in 0 until items.length()) {
+                val item = items.getJSONObject(j)
+                total += item.optDouble("price", 0.0)
+            }
+        }
+
+        total
+    } catch (e: Exception) {
+        0.0
+    }
+}
+
 
 @Composable
 fun SummaryRow(

@@ -39,7 +39,7 @@ fun CartRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp),   // ✅ Increased row height
+            .heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
 
@@ -70,6 +70,23 @@ fun CartRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
+
+
+            val modifiers = ModifierJsonHelper.fromJson(item.modifiersJson)
+                .flatMap { group ->
+                    group.items.map { item ->
+                        "${item.name} (+₹${"%.2f".format(item.price)})"
+                    }
+                }
+
+            modifiers.forEach { modText ->
+                Text(
+                    text = "  + $modText",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
 
             item.note?.let { note ->
                 if (note.isNotBlank()) {

@@ -37,7 +37,7 @@ import com.it10x.foodappgstav7_10.data.printqueue.PrintQueueDao
         ModifierItemEntity::class,
         ProductModifierEntity::class
     ],
-    version = 96,              // ⬆️ increment version since schema changed
+    version = 97,              // ⬆️ increment version since schema changed
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -340,17 +340,7 @@ fun DeliveryAddressDialog(
                     addressState.value = addressState.value.copy(line2 = it)
                 }
 
-//                AddressField("City", addressState.value.city) {
-//                    addressState.value = addressState.value.copy(city = it)
-//                }
 
-//                AddressField("State", addressState.value.state) {
-//                    addressState.value = addressState.value.copy(state = it)
-//                }
-
-//                AddressField("Zipcode", addressState.value.zipcode) {
-//                    addressState.value = addressState.value.copy(zipcode = it)
-//                }
 
                 AddressField("Landmark", addressState.value.landmark) {
                     addressState.value = addressState.value.copy(landmark = it)
@@ -398,17 +388,6 @@ private fun AddressField(
     )
 }
 
-//fun parseModifiers(json: String): List<String> {
-//    return try {
-//        json.removePrefix("[")
-//            .removeSuffix("]")
-//            .split(",")
-//            .map { it.trim().replace("\"", "") }
-//            .filter { it.isNotBlank() }
-//    } catch (e: Exception) {
-//        emptyList()
-//    }
-//}
 
 fun parseModifiers(json: String): List<String> {
     return try {

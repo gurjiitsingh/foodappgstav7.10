@@ -43,6 +43,8 @@ object PosOrderToKotMapper {
                 isVariant = item.isVariant,
 
                 basePrice = item.basePrice,
+                finalPrice = 0.0,
+                modifierTotal = 0.0,
                 quantity = item.quantity,
 
                 taxRate = item.taxRate,

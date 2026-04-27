@@ -1,6 +1,7 @@
 package com.it10x.foodappgstav7_10.ui.pos
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +29,8 @@ import com.it10x.foodappgstav7_10.viewmodel.PosTableViewModel
 import com.it10x.foodappgstav7_10.data.pos.repository.ModifierRepository
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.google.gson.Gson
 import com.it10x.foodappgstav7_10.data.pos.models.CartModifier
 import com.it10x.foodappgstav7_10.data.pos.models.CartModifierItem
@@ -336,261 +339,311 @@ private fun ParentProductCard(
             modifierGroups = modifierRepo.getModifiersForProduct(product.id)
         }
 
-        AlertDialog(
+        Dialog(
             onDismissRequest = {
                 showVariantDialog = false
                 showModifierDialog = false
             },
-            containerColor = Color(0xFF1E293B),
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
 
-            confirmButton = {
-
-                val isVariantRequired = product.hasVariants == true
-                val isVariantSelected = selectedVariantId != null
-
-                Button(
-                    onClick = {
-
-                        var extraPrice = 0.0
-
-                        val selectedModifiersList = mutableListOf<CartModifier>()
-
-                        modifierGroups.forEach { group ->
-
-                            val selectedItems = mutableListOf<CartModifierItem>()
-
-                            // 🔘 Single select
-                            selectedSingle[group.group.id]?.let { itemId ->
-                                val item = group.items.find { it.id == itemId }
-                                if (item != null) {
-                                    extraPrice += item.price
-
-                                    selectedItems.add(
-                                        CartModifierItem(
-                                            itemId = item.id,
-                                            name = item.name,
-                                            price = item.price
-                                        )
-                                    )
-                                }
-                            }
-
-                            // ☑️ Multi select
-                            selectedMulti[group.group.id]?.forEach { itemId ->
-                                val item = group.items.find { it.id == itemId }
-                                if (item != null) {
-                                    extraPrice += item.price
-
-                                    selectedItems.add(
-                                        CartModifierItem(
-                                            itemId = item.id,
-                                            name = item.name,
-                                            price = item.price
-                                        )
-                                    )
-                                }
-                            }
-
-                            // ✅ Add group only if it has items
-                            if (selectedItems.isNotEmpty()) {
-
-                                // 🔥 IMPORTANT: sort to avoid duplicate cart rows
-                                selectedItems.sortBy { it.itemId }
-
-                                selectedModifiersList.add(
-                                    CartModifier(
-                                        groupId = group.group.id,
-                                        groupName = group.group.name,
-                                        items = selectedItems
-                                    )
-                                )
-                            }
-                        }
-
-                        // 🔥 IMPORTANT: sort groups also
-                        selectedModifiersList.sortBy { it.groupId }
-
-                        val modifiersJson = ModifierJsonHelper.toJson(selectedModifiersList)
-
-                        val finalPrice = baseProduct.price + extraPrice
-
-                        // 🚀 SEND TO CART
-                        cartViewModel.addProductToCart(
-                            product = baseProduct,
-                            price = finalPrice,
-                            modifiersJson = modifiersJson   // ✅ NOW IT WORKS
-                        )
-
-                        showVariantDialog = false
-                        showModifierDialog = false
-
-                        onProductAdded()
-                    },
-                    enabled = !isVariantRequired || isVariantSelected
-                ) {
-                    Text("Add")
-                }
-            },
-
-            title = {
-                Text("Customize ${product.name}")
-            },
-
-            text = {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.95f),
+                color = Color(0xFF1E293B),
+                shape = RoundedCornerShape(0.dp)
+            ) {
 
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 500.dp)
-                        .verticalScroll(rememberScrollState())
+                        .fillMaxSize()
+                        .padding(16.dp)
                 ) {
 
-                    // =========================
-                    // ✅ VARIANT SECTION
-                    // =========================
-                    if (product.hasVariants == true && variants.isNotEmpty()) {
+                    // 🔥 TITLE
+                    Text(
+                        text = "Customize ${product.name}",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                        Text(
-                            text = "Select Variant",
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(vertical = 6.dp)
-                        )
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                        variants.forEach { variant ->
+                    // 🔥 CONTENT (SCROLLABLE)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                    ) {
 
-                            val variantPrice =
-                                if (variant.discountPrice == null || variant.discountPrice == 0.0)
-                                    variant.price
-                                else variant.discountPrice
+                        // =========================
+                        // ✅ VARIANT SECTION
+                        // =========================
+                        if (product.hasVariants == true && variants.isNotEmpty()) {
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            Text(
+                                text = "Select Variant",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
 
-                                RadioButton(
-                                    selected = selectedVariantId == variant.id,
-                                    onClick = {
-                                        selectedVariantId = variant.id
-                                    }
-                                )
+                            variants.forEach { variant ->
 
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(variant.name)
-                                    Text(
-                                        "₹$variantPrice",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color.Gray
+                                val variantPrice =
+                                    if (variant.discountPrice == null || variant.discountPrice == 0.0)
+                                        variant.price
+                                    else variant.discountPrice
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+
+                                    RadioButton(
+                                        selected = selectedVariantId == variant.id,
+                                        onClick = { selectedVariantId = variant.id }
                                     )
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(variant.name, color = Color.White)
+                                        Text(
+                                            "₹$variantPrice",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.Gray
+                                        )
+                                    }
                                 }
                             }
+
+                            Divider(modifier = Modifier.padding(vertical = 8.dp))
                         }
 
-                        Divider(modifier = Modifier.padding(vertical = 8.dp))
-                    }
+                        // =========================
+                        // ✅ MODIFIER SECTION
+                        // =========================
+                        if (modifierGroups.isEmpty()) {
+                            Text("No customization available", color = Color.White)
+                        } else {
 
-                    // =========================
-                    // ✅ MODIFIER SECTION
-                    // =========================
-                    if (modifierGroups.isEmpty()) {
-                        Text("No customization available")
-                    } else {
+                            modifierGroups.forEach { group ->
 
-                        modifierGroups.forEach { group ->
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-
-                                    Text(
-                                        text = group.group.name,
-                                        fontWeight = FontWeight.Bold
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color(0xFF334155)
                                     )
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
 
-                                    Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = group.group.name,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
 
-                                    group.items.forEach { item ->
+                                        Spacer(modifier = Modifier.height(6.dp))
 
-                                        Row(
+                                        LazyVerticalGrid(
+                                            columns = GridCells.Fixed(3),
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                                .heightIn(max = 300.dp), // prevents infinite height crash
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
+                                            items(group.items.size) { index ->
 
-                                            val isSingle = group.group.maxSelection == 1
+                                                val item = group.items[index]
+                                                val isSingle = group.group.maxSelection == 1
 
-                                            if (isSingle) {
-                                                RadioButton(
-                                                    selected = selectedSingle[group.group.id] == item.id,
-                                                    onClick = {
-                                                        selectedSingle[group.group.id] = item.id
-                                                    }
-                                                )
-                                            } else {
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = Color(0xFF475569)
+                                                    )
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(8.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
 
-                                                val selectedList =
-                                                    selectedMulti.getOrPut(group.group.id) { mutableListOf() }
-
-                                                Checkbox(
-                                                    checked = selectedList.contains(item.id),
-                                                    onCheckedChange = { isChecked ->
-
-                                                        if (isChecked) {
-                                                            if (selectedList.size < group.group.maxSelection) {
-                                                                selectedList.add(item.id)
-                                                            }
+                                                        if (isSingle) {
+                                                            RadioButton(
+                                                                selected = selectedSingle[group.group.id] == item.id,
+                                                                onClick = {
+                                                                    selectedSingle[group.group.id] = item.id
+                                                                }
+                                                            )
                                                         } else {
-                                                            selectedList.remove(item.id)
+
+                                                            val selectedList =
+                                                                selectedMulti.getOrPut(group.group.id) { mutableStateListOf<String>() }
+
+                                                            Checkbox(
+                                                                checked = selectedList.contains(item.id),
+                                                                onCheckedChange = { isChecked ->
+
+                                                                    if (isChecked) {
+                                                                        if (selectedList.size < group.group.maxSelection) {
+                                                                            selectedList.add(item.id)
+                                                                        }
+                                                                    } else {
+                                                                        selectedList.remove(item.id)
+                                                                    }
+                                                                }
+                                                            )
+                                                        }
+
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(item.name, color = Color.White)
+                                                            Text(
+                                                                "₹${item.price}",
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = Color.LightGray
+                                                            )
                                                         }
                                                     }
-                                                )
-                                            }
-
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(item.name)
-                                                Text(
-                                                    "₹${item.price}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = Color.Gray
-                                                )
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
+
+                        // =========================
+                        // 💰 LIVE TOTAL
+                        // =========================
+                        val extraPrice =
+                            selectedSingle.values.sumOf { id ->
+                                modifierGroups.flatMap { it.items }
+                                    .find { it.id == id }?.price ?: 0.0
+                            } +
+                                    selectedMulti.values.flatten().sumOf { id ->
+                                        modifierGroups.flatMap { it.items }
+                                            .find { it.id == id }?.price ?: 0.0
+                                    }
+
+                        val total = baseProduct.price + extraPrice
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Total: ₹$total",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
                     }
 
-                    // =========================
-                    // 💰 LIVE TOTAL (OPTIONAL 🔥)
-                    // =========================
-                    val extraPrice = selectedSingle.values.sumOf { id ->
-                        modifierGroups.flatMap { it.items }.find { it.id == id }?.price ?: 0.0
-                    } + selectedMulti.values.flatten().sumOf { id ->
-                        modifierGroups.flatMap { it.items }.find { it.id == id }?.price ?: 0.0
+                    // 🔥 ADD BUTTON (STICKY)
+                    val isVariantRequired = product.hasVariants == true
+                    val isVariantSelected = selectedVariantId != null
+                    val context = LocalContext.current
+
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+
+                        // ❌ CANCEL BUTTON
+                        OutlinedButton(
+                            onClick = {
+                                showVariantDialog = false
+                                showModifierDialog = false
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Cancel")
+                        }
+
+                        // ➕ ADD BUTTON
+                        Button(
+                            onClick = {
+
+                                // 🚨 VALIDATION
+                                if (product.hasVariants == true && selectedVariantId == null) {
+                                    Toast.makeText(context, "Please select a variant", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+
+                                var extraPrice = 0.0
+                                val selectedModifiersList = mutableListOf<CartModifier>()
+
+                                modifierGroups.forEach { group ->
+
+                                    val selectedItems = mutableListOf<CartModifierItem>()
+
+                                    selectedSingle[group.group.id]?.let { itemId ->
+                                        val item = group.items.find { it.id == itemId }
+                                        if (item != null) {
+                                            extraPrice += item.price
+                                            selectedItems.add(
+                                                CartModifierItem(item.id, item.name, item.price)
+                                            )
+                                        }
+                                    }
+
+                                    selectedMulti[group.group.id]?.forEach { itemId ->
+                                        val item = group.items.find { it.id == itemId }
+                                        if (item != null) {
+                                            extraPrice += item.price
+                                            selectedItems.add(
+                                                CartModifierItem(item.id, item.name, item.price)
+                                            )
+                                        }
+                                    }
+
+                                    if (selectedItems.isNotEmpty()) {
+                                        selectedItems.sortBy { it.itemId }
+
+                                        selectedModifiersList.add(
+                                            CartModifier(
+                                                group.group.id,
+                                                group.group.name,
+                                                selectedItems
+                                            )
+                                        )
+                                    }
+                                }
+
+                                selectedModifiersList.sortBy { it.groupId }
+
+                                val modifiersJson =
+                                    ModifierJsonHelper.toJson(selectedModifiersList)
+
+                                cartViewModel.addProductToCart(
+                                    product = baseProduct,
+                                    price = baseProduct.price,
+                                    modifiersJson = modifiersJson
+                                )
+
+                                showVariantDialog = false
+                                showModifierDialog = false
+                                onProductAdded()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Add")
+                        }
                     }
-
-                    val total = baseProduct.price + extraPrice
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = "Total: ₹$total",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
                 }
             }
-        )
+        }
     }
 }

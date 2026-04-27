@@ -33,6 +33,8 @@ data class PosKotItemEntity(
     val isVariant: Boolean,
 
     val basePrice: Double,
+    val finalPrice: Double = 0.0,
+    val modifierTotal: Double,
     val quantity: Int,
 
     val taxRate: Double,

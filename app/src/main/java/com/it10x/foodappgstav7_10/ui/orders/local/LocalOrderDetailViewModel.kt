@@ -32,8 +32,12 @@ class LocalOrderDetailViewModel(
         .map { it?.discountTotal ?: 0.0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
 
+//    val taxTotal = orderInfo
+//        .map { it?.taxTotal ?: 0.0 }
+//        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
+
     val taxTotal = orderInfo
-        .map { it?.taxTotal ?: 0.0 }
+        .map { it?.itemTax ?: 0.0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
 
     val grandTotal = orderInfo

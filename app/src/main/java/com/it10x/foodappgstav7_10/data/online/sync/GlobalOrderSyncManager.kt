@@ -284,6 +284,7 @@ private fun startMainPosListener() {
                                 parentId = null,
                                 isVariant = false,
                                 basePrice = itemDoc.getDouble("price") ?: 0.0,
+                                modifierTotal = 0.0,
                                 quantity = (itemDoc.getLong("quantity") ?: 1L).toInt(),
                                 taxRate = itemDoc.getDouble("taxRate") ?: 0.0,
                                 taxType = "exclusive",

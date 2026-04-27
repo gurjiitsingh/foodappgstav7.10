@@ -51,6 +51,8 @@ class TableSnapshotListener(
                                 parentId = null,
                                 isVariant = false,
                                 basePrice = 0.0,
+                                finalPrice = 0.0,
+                                modifierTotal = 0.0,
                                 quantity = (doc.getLong("quantity") ?: 1L).toInt(),
                                 taxRate = 0.0,
                                 taxType = "exclusive",

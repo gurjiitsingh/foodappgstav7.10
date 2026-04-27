@@ -257,6 +257,13 @@ class KitchenViewModel(
 
             val items = cartItems.map { cart ->
                 Log.d("ORDER_TYPE_TRACE", "orderType=$orderType  tableNo=${tableNo}")
+
+                val modifierTotal = ModifierJsonHelper
+                    .fromJson(cart.modifiersJson)
+                    .sumOf { group -> group.items.sumOf { it.price } }
+
+                val finalPrice = cart.basePrice + modifierTotal
+
                 PosKotItemEntity(
                     id = UUID.randomUUID().toString(),
                     sessionId = sessionId,
@@ -269,6 +276,8 @@ class KitchenViewModel(
                     parentId = cart.parentId,
                     isVariant = cart.isVariant,
                     basePrice = cart.basePrice,
+                    finalPrice = finalPrice,
+                    modifierTotal = modifierTotal,
                     quantity = cart.quantity,
                     taxRate = cart.taxRate,
                     taxType = cart.taxType,
@@ -370,6 +379,8 @@ class KitchenViewModel(
                         parentId = null,
                         isVariant = false,
                         basePrice = (item["price"] as? Number)?.toDouble() ?: 0.0,
+                        finalPrice = 0.0,
+                        modifierTotal = 0.0,
                         quantity = (item["quantity"] as? Number)?.toInt() ?: 1,
                         taxRate = 0.0,
                         taxType = "exclusive",
@@ -460,6 +471,8 @@ class KitchenViewModel(
                     parentId = cart.parentId,
                     isVariant = cart.isVariant,
                     basePrice = cart.basePrice,
+                    finalPrice = 0.0,
+                    modifierTotal = 0.0,
                     quantity = cart.quantity,
                     taxRate = cart.taxRate,
                     taxType = cart.taxType,

@@ -280,13 +280,25 @@ class BillViewModel(
 
                         val first = group.first()
                         val quantity = group.sumOf { it.quantity }
-                        val itemTotal = first.basePrice * quantity
+                        val modifierPricePerItem =
+                            ModifierJsonHelper.fromJson(first.modifiersJson)
+                                .flatMap { it.items }
+                                .sumOf { it.price }
 
-                        val taxTotal = group.sumOf {
-                            if (it.taxType == "exclusive")
-                                it.basePrice * it.quantity * (it.taxRate / 100)
+// ✅ base + modifier
+                        val basePlusModifier = first.basePrice + modifierPricePerItem
+
+// ✅ totals
+                        val itemTotal = (basePlusModifier * quantity).round(2)
+
+                        val taxPerItem =
+                            if (first.taxType == "exclusive")
+                                (basePlusModifier * (first.taxRate / 100)).round(2)
                             else 0.0
-                        }
+
+                        val taxTotal = (taxPerItem * quantity).round(2)
+
+
 
                         BillingItemUi(
                             id = first.id,
@@ -295,9 +307,12 @@ class BillViewModel(
                             basePrice = first.basePrice,
                             taxRate = first.taxRate,
                             quantity = quantity,
+
+                            // ✅ FIXED
                             finalTotal = itemTotal + taxTotal,
                             itemtotal = itemTotal,
                             taxTotal = taxTotal,
+
                             note = first.note ?: "",
                             modifiersJson = first.modifiersJson ?: ""
                         )
@@ -438,18 +453,20 @@ class BillViewModel(
                     return@launch
                 }
 
-                val itemSubtotalPaise =
-                    kotItems.sumOf { MoneyUtils.toPaise(it.basePrice) * it.quantity }
+
+                val itemSubtotalPaise = kotItems.sumOf {
+
+                    val modifierPricePerItem =
+                        ModifierJsonHelper.fromJson(it.modifiersJson)
+                            .flatMap { group -> group.items }
+                            .sumOf { item -> item.price }
+
+                    val basePlusModifier = it.basePrice + modifierPricePerItem
+
+                    MoneyUtils.toPaise(basePlusModifier) * it.quantity
+                }
 
 
-//                val rawTaxPaise = kotItems
-//                    .filter { it.taxType == "exclusive" }
-//                    .sumOf {
-//                        val basePaise = MoneyUtils.toPaise(it.basePrice)
-//                        val exactTaxPerItem = (basePaise * it.taxRate) / 100.0
-//                        exactTaxPerItem * it.quantity
-//                    }
-//                    .toLong()
 
 
                 val rawTaxPaise = kotItems
@@ -646,6 +663,17 @@ class BillViewModel(
             // ORDER MASTER
             // ===========================
 
+                val calculatedTotal = totalPaidPaise + creditPaiseInput
+                val diff = kotlin.math.abs(calculatedTotal - grandTotalPaise)
+
+//                if (diff > 13) { // 1 paise tolerance
+//                    sendEvent("Payment mismatch")
+//                    _isProcessing.value = false
+//                    return@launch
+//                }
+
+
+
             val orderMaster = PosOrderMasterEntity(
                 id = orderId,
                 srno = srno,
@@ -667,7 +695,8 @@ class BillViewModel(
 
                //taxTotal = MoneyUtils.fromPaise(taxTotalPaise),
                 deliveryFee = _deliveryFee.value,
-                deliveryTax = ( _deliveryFee.value * _deliveryTaxPercent.value / 100.0 ),
+               // deliveryTax = ( _deliveryFee.value * _deliveryTaxPercent.value / 100.0 ),
+                deliveryTax = MoneyUtils.fromPaise(deliveryTaxPaise),
                 itemTax = MoneyUtils.fromPaise(taxAfterDiscountPaise),
                 taxTotal = MoneyUtils.fromPaise(totalTaxPaise),
                 discountTotal = MoneyUtils.fromPaise(safeDiscountPaise),
@@ -713,28 +742,33 @@ class BillViewModel(
                             ModifierJsonHelper.fromJson(first.modifiersJson)
                                 .flatMap { it.items }
                                 .sumOf { it.price }
-                        val itemSubtotal =
-                            ((first.basePrice + modifierPricePerItem) * quantity).round(2)
+                     //   val itemGrossAmount =
+                     //       ((first.basePrice + modifierPricePerItem) * quantity).round(2)
 
+                   //     val basePlusModifier = first.basePrice + modifierPricePerItem
 
                         val basePlusModifier = first.basePrice + modifierPricePerItem
 
-                        val taxPerItem =
+                        val itemGrossAmount = (basePlusModifier * quantity).round(2)
+
+
+                        val taxPerItemPlusModifier =
                             if (first.taxType == "exclusive")
                                 (basePlusModifier * (first.taxRate / 100))
                             else 0.0
 
-                        val finalPricePerItem =
-                            (basePlusModifier + taxPerItem).round(2)
+                        val finalPricePerItemPlusModifier =
+                            (basePlusModifier + taxPerItemPlusModifier).round(2)
 
-                        val finalTotal =
-                            (finalPricePerItem * quantity).round(2)
+                        val finalPriceTotalItemPlusModifier =
+                            (finalPricePerItemPlusModifier * quantity).round(2)
 
-                        val taxTotalItem =
-                            (taxPerItem * quantity).round(2)
+                        val taxTotalItemPlusModifier =
+                            (taxPerItemPlusModifier * quantity).round(2)
 
                         val modifierTotal =
                             (modifierPricePerItem * quantity).round(2)
+                        Log.d("BASE_PRICE", "${first.basePrice}")
 
                          PosOrderItemEntity(
                             id = UUID.randomUUID().toString(),
@@ -749,19 +783,19 @@ class BillViewModel(
                             basePrice = first.basePrice,
                             modifierPrice = modifierTotal,
                             quantity = quantity,
-                            itemSubtotal = itemSubtotal ,
+                            itemSubtotal = itemGrossAmount ,
                             // 🔹 Currency snapshot (important for audit)
                             currency = _currencySymbol.value,
                             // 🔹 Payment snapshot (do NOT rely on join later)
                             paymentStatus = paymentStatus,
                             taxRate = first.taxRate,
                             taxType = first.taxType,
-                            taxAmountPerItem = taxPerItem,
-                            taxTotal = taxTotalItem,
+                            taxAmountPerItem = taxPerItemPlusModifier,
+                            taxTotal = taxTotalItemPlusModifier,
                             note = first.note,
                             modifiersJson = first.modifiersJson,
-                            finalPricePerItem = finalPricePerItem,
-                            finalTotal = finalTotal,
+                            finalPricePerItem = finalPricePerItemPlusModifier,
+                            finalTotal = finalPriceTotalItemPlusModifier,
                             createdAt = now
                         )
                     }
