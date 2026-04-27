@@ -49,22 +49,13 @@ fun ProductList(
 
     val db = AppDatabaseProvider.get(LocalContext.current)
 
-//    var hasModifiers by remember { mutableStateOf(false) }
-//
-//    LaunchedEffect(filteredProducts.productId) {
-//        hasModifiers = db.productModifierDao().hasModifiers(product.id) > 0
-//    }
-
-
     val sessionId by posSessionViewModel.sessionId.collectAsState()
     val sortedProducts = remember(filteredProducts) {
         filteredProducts
             .filter { it.type == "parent" } // ✅ only parent products
             .sortedBy { it.sortOrder }
     }
-//    val sortedProducts = remember(filteredProducts) {
-//        filteredProducts.sortedBy { it.sortOrder }
-//    }
+
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 160.dp),
