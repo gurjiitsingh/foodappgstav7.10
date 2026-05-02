@@ -32,7 +32,7 @@ fun CategoryProductReportScreen(
 ) {
 
     val context = LocalContext.current
-    val printer = remember { PrinterManager(context) }
+    val printer = remember { PrinterManager.getInstance(context) }
     // ---------------- DATE ----------------
     val startCalendar = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 0)

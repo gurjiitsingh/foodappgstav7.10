@@ -181,7 +181,7 @@ fun TotalSalesReportScreen(
         }
 
 
-        val printer = remember { PrinterManager(context) }
+        val printer = remember { PrinterManager.getInstance(context) }
 
         if (!loading) {
             Button(

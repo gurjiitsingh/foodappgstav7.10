@@ -49,6 +49,7 @@ data class ProductEntity(
     val parentId: String?,         // NULL = main product
     val baseProductId: String?,    // keep for future compatibility
     val hasVariants: Boolean,
+    val hasModifiers: Boolean = false,
 
     // =====================================================
     // INVENTORY (READ ONLY IN POS)

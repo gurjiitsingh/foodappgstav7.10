@@ -77,10 +77,7 @@ fun WaiterRightPanel(
     val application = context.applicationContext as Application
     val db = AppDatabaseProvider.get(application)
 
-    val printerManager = PrinterManager(context)
-//    val waiterKitchenRepository = remember {
-//        WaiterKitchenRepository()
-//    }
+
     val waiterKitchenRepository = WaiterKitchenRepository(
         FirebaseFirestore.getInstance()
     )

@@ -127,7 +127,7 @@ Thank You!
     fun billing48(order: PrintOrder, outletInfo: OutletInfo): String {
 
         val LINE_WIDTH = 48
-      //  Log.d("RECEIPT_FORMATTER", "billing48() called for orderNo=${order.orderNo}")
+        //  Log.d("RECEIPT_FORMATTER", "billing48() called for orderNo=${order.orderNo}")
         val outletHeader = buildOutletHeader(outletInfo, LINE_WIDTH)
 
 
@@ -554,7 +554,7 @@ Thank You!
             ?.let { address ->
                 lines += address.take(width)
             }
-       if(width==32){
+        if(width==32){
             info.addressLine2?.let { lines += it.take(width) }
             info.addressLine3?.let { lines += it.take(width) }
             info.city?.let { lines += it.take(width) }
@@ -563,7 +563,7 @@ Thank You!
             info.email?.let { lines += "Email: $it" }
             info.web?.let { lines += "Web: $it" }
             info.gst?.let { lines += "GST: $it" }
-         //   info.footerNote?.let { lines += it.take(width) }
+            //   info.footerNote?.let { lines += it.take(width) }
         }
 
         if(width==48){
@@ -586,7 +586,7 @@ Thank You!
             info.email?.let { lines += "Email: $it" }
             info.web?.let { lines += "Web: $it" }
             info.gst?.let { lines += "GST: $it" }
-           // info.footerNote?.let { lines += it.take(width) }
+            // info.footerNote?.let { lines += it.take(width) }
         }
 
         return lines.joinToString("\n")

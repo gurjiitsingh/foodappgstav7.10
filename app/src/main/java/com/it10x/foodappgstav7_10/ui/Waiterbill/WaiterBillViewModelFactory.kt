@@ -28,7 +28,8 @@ class WaiterBillViewModelFactory(
 
             val orderSequenceRepository = OrderSequenceRepository(db)
 
-            val printerManager = PrinterManager(application.applicationContext)
+            val printerManager =
+                PrinterManager.getInstance(application.applicationContext)
 
             val kotRepository = KotRepository(
                 db.kotBatchDao(),

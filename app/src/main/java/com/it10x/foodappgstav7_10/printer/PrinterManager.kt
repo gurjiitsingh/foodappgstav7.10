@@ -25,9 +25,24 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class PrinterManager(
+class PrinterManager private constructor(
     private val context: Context
 ) {
+
+    companion object {
+        @Volatile
+        private var INSTANCE: PrinterManager? = null
+
+        fun getInstance(context: Context): PrinterManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: PrinterManager(context.applicationContext).also {
+                    INSTANCE = it
+                }
+            }
+        }
+    }
+
+
 
 
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -73,14 +88,12 @@ class PrinterManager(
         items: List<PosKotItemEntity>
     ) {
 
-
-
         val text = ReceiptFormatter.posKitchen(
             sessionKey = sessionKey,
             orderType = orderType,
             items = items,
 
-        )
+            )
 
         enqueuePrint(PrinterRole.KITCHEN, text)
     }
@@ -286,7 +299,7 @@ class PrinterManager(
         when (config.type) {
 
             PrinterType.BLUETOOTH -> {
-            //    Log.d("PRINT_BT", "Test BT address='${config.bluetoothAddress}'")
+                //    Log.d("PRINT_BT", "Test BT address='${config.bluetoothAddress}'")
                 if (config.bluetoothAddress.isBlank()) {
                     onResult(false)
                     return
@@ -339,69 +352,69 @@ class PrinterManager(
     // --------------------------------
     // REAL PRINT (USED BY BUTTON + AUTO)
     // --------------------------------
-  fun printText(
-    role: PrinterRole,
-    text: String,
-    onResult: (Boolean) -> Unit = {}
-) {
+    fun printText(
+        role: PrinterRole,
+        text: String,
+        onResult: (Boolean) -> Unit = {}
+    ) {
 
         Log.e(
             "PRINTTEST",
             "\n================= printText =================\n$text\n=================================================="
         )
-    val config = prefs.getPrinterConfig(role)
-    if (config == null) {
-        Log.e("PRINTTEST", "No printer configured for role=$role")
-        onResult(false)
-        return
+        val config = prefs.getPrinterConfig(role)
+        if (config == null) {
+            Log.e("PRINTTEST", "No printer configured for role=$role")
+            onResult(false)
+            return
+        }
+
+        //Log.d("PRINT", "Printing role=$role type=${config.type}")
+        //  var  text1="kljkl"
+        when (config.type) {
+
+            PrinterType.BLUETOOTH -> {
+                if (config.bluetoothAddress.isBlank()) {
+                    onResult(false)
+                    return
+                }
+                BluetoothPrinter.printText(
+                    config.bluetoothAddress,
+                    text,
+                    onResult
+                )
+            }
+
+            PrinterType.LAN -> {
+                if (config.ip.isBlank()) {
+                    onResult(false)
+                    return
+                }
+                LanPrinter.printText(
+                    config.ip,
+                    config.port,
+                    text,
+                    onResult
+                )
+            }
+
+            PrinterType.USB -> {
+                val device = config.usbDevice ?: run {
+                    onResult(false)
+                    return
+                }
+                USBPrinter.printText(
+                    text,
+                    onResult
+                )
+
+
+
+            }
+
+            PrinterType.WIFI -> onResult(false)
+        }
     }
-
-    //Log.d("PRINT", "Printing role=$role type=${config.type}")
-    //  var  text1="kljkl"
-    when (config.type) {
-
-        PrinterType.BLUETOOTH -> {
-            if (config.bluetoothAddress.isBlank()) {
-                onResult(false)
-                return
-            }
-            BluetoothPrinter.printText(
-                config.bluetoothAddress,
-                text,
-                onResult
-            )
-        }
-
-        PrinterType.LAN -> {
-            if (config.ip.isBlank()) {
-                onResult(false)
-                return
-            }
-            LanPrinter.printText(
-                config.ip,
-                config.port,
-                text,
-                onResult
-            )
-        }
-
-        PrinterType.USB -> {
-            val device = config.usbDevice ?: run {
-                onResult(false)
-                return
-            }
-            USBPrinter.printText(
-                text,
-       onResult
-            )
-
-
-
-        }
-
-        PrinterType.WIFI -> onResult(false)
-    }
-}
 
     suspend fun printTextNewSuspend(
         role: PrinterRole,
@@ -426,7 +439,7 @@ class PrinterManager(
         order: PrintOrder,
         onResult: (Boolean) -> Unit = {}
     ) {
-      //  Log.e("PRINT_NEW", "Printing for role=$role")
+        //  Log.e("PRINT_NEW", "Printing for role=$role")
 
         // Get printer configuration and preferences
         val config = prefs.getPrinterConfig(role)

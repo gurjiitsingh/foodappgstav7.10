@@ -29,7 +29,7 @@ fun SalesScreen(
 ) {
 
     val context = LocalContext.current
-    val printer = remember { PrinterManager(context) }
+    val printer = remember { PrinterManager.getInstance(context) }
     val uiState by viewModel.uiState.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {

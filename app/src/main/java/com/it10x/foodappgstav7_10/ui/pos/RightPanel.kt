@@ -68,7 +68,7 @@ fun RightPanel(
     val application = context.applicationContext as android.app.Application
     val db = AppDatabaseProvider.get(application)
 
-    val printerManager = PrinterManager(context)
+
 
 
     val sessionId = cartViewModel.sessionKey.collectAsState().value ?: return

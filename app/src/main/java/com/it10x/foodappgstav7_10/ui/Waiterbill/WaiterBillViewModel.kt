@@ -40,7 +40,8 @@ import com.it10x.foodappgstav7_10.data.pos.repository.KotRepository
 import com.it10x.foodappgstav7_10.ui.Waiterbill.BillingItemUi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
-
+import kotlin.math.pow
+import kotlin.math.roundToLong
 class WaiterBillViewModel(
     private val kotItemDao: KotItemDao,
     private val orderMasterDao: OrderMasterDao,
@@ -131,13 +132,23 @@ class WaiterBillViewModel(
 
                         val first = group.first()
                         val quantity = group.sumOf { it.quantity }
-                        val itemTotal = first.basePrice * quantity
+                        val modifierPricePerItem =
+                            ModifierJsonHelper.fromJson(first.modifiersJson)
+                                .flatMap { it.items }
+                                .sumOf { it.price }
 
-                        val taxTotal = group.sumOf {
-                            if (it.taxType == "exclusive")
-                                it.basePrice * it.quantity * (it.taxRate / 100)
+// ✅ base + modifier
+                        val basePlusModifier = first.basePrice + modifierPricePerItem
+
+// ✅ totals
+                        val itemTotal = (basePlusModifier * quantity).round(2)
+
+                        val taxPerItem =
+                            if (first.taxType == "exclusive")
+                                (basePlusModifier * (first.taxRate / 100)).round(2)
                             else 0.0
-                        }
+
+                        val taxTotal = (taxPerItem * quantity).round(2)
 
                         BillingItemUi(
                             id = first.id,
@@ -205,7 +216,10 @@ class WaiterBillViewModel(
         }
     }
 
-
+    fun Double.round(decimals: Int): Double {
+        val factor = 10.0.pow(decimals)
+        return kotlin.math.round(this * factor) / factor
+    }
 
 
 }

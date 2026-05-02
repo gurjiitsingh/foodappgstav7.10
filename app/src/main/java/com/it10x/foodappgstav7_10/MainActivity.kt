@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
             kotItemDao = db.kotItemDao(),
             tableDao = db.tableDao()
         )
-        val printerManager = PrinterManager(this)
+        val printerManager = PrinterManager.getInstance(this)
         val kotProcessor = KotProcessor(
             kotItemDao = db.kotItemDao(),
             kotRepository = kotRepository,

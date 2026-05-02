@@ -2,6 +2,7 @@ package com.it10x.foodappgstav7_10.service
 
 import android.app.*
 import android.content.*
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.google.firebase.FirebaseApp
@@ -13,8 +14,8 @@ import com.it10x.foodappgstav7_10.printer.PrinterManager
 class OrderListenerService : Service() {
 
     private lateinit var listener: ServiceRealtimeOrdersListener
+    private var isReceiverRegistered = false
 
-    // 🔔 Receiver to stop ringtone
     private val stopSoundReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             android.util.Log.e("STOP_SOUND", "Broadcast received")
@@ -24,14 +25,14 @@ class OrderListenerService : Service() {
     }
 
     override fun onCreate() {
+        super.onCreate()
+
         if (FirebaseApp.getApps(this).isEmpty()) {
             stopSelf()
             return
         }
 
-        super.onCreate()
-
-        val printerManager = PrinterManager(this)
+        val printerManager = PrinterManager.getInstance(this)
         val ordersRepo = OrdersRepository()
 
         val autoPrint = AutoPrintManager(
@@ -46,21 +47,31 @@ class OrderListenerService : Service() {
 
         listener.startListening()
 
-        registerReceiver(
-            stopSoundReceiver,
-            IntentFilter("STOP_RINGTONE"),
-            RECEIVER_NOT_EXPORTED
-        )
+
+
+        val filter = IntentFilter("STOP_RINGTONE")
+
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(
+                stopSoundReceiver,
+                filter,
+                Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(stopSoundReceiver, filter)
+        }
+
+        isReceiverRegistered = true
 
         startForeground(99, buildNotification())
     }
-
 
     private fun buildNotification(): Notification {
         val channelId = "orders_monitor"
         val channelName = "Order Monitoring"
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
             val channel = NotificationChannel(
                 channelId,
@@ -79,11 +90,22 @@ class OrderListenerService : Service() {
     }
 
     override fun onDestroy() {
-        unregisterReceiver(stopSoundReceiver)
-        listener.stopListening()
+
+        if (isReceiverRegistered) {
+            try {
+                unregisterReceiver(stopSoundReceiver)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            isReceiverRegistered = false
+        }
+
+        if (::listener.isInitialized) {
+            listener.stopListening()
+        }
+
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 }
-

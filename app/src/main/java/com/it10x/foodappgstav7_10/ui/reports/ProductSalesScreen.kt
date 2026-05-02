@@ -224,7 +224,7 @@ fun ProductSalesScreen(
 
             if (!loading && !(qty == 0 && totalSales == 0.0)) {
 
-                val printer = remember { PrinterManager(context) }
+                val printer = remember { PrinterManager.getInstance(context) }
 
                 Box(
                     modifier = Modifier.fillMaxWidth(),

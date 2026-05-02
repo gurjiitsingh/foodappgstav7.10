@@ -104,7 +104,7 @@ class CartViewModel(
     ) {
         Log.d(
             "MODI",
-            "${modifiersJson}"
+            "price:${price} modi:  ${modifiersJson}"
         )
 
         val modifierTotal = ModifierJsonHelper

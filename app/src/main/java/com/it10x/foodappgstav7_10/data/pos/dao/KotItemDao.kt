@@ -239,12 +239,41 @@ AND status = 'PENDING'
 """)
     suspend fun getUnprintedItems(tableNo: String): List<PosKotItemEntity>
 
+
+
+//    @Query("""
+//UPDATE pos_kot_items
+//SET kitchenPrinted = 1
+//WHERE kotBatchId = :batchId
+//AND kitchenPrintReq = 1
+//AND kitchenPrinted = 0
+//""")
+//    suspend fun markBatchKitchenPrintedBatch(batchId: String): Int
+
+
     @Query("""
-    UPDATE pos_kot_items
-    SET kitchenPrinted = 1
-    WHERE kotBatchId = :batchId
+UPDATE pos_kot_items
+SET kitchenPrinted = 1
+WHERE kotBatchId = :batchId
+AND kitchenPrinted = 0
 """)
-    suspend fun markBatchKitchenPrintedBatch(batchId: String)
+    suspend fun markBatchKitchenPrintedBatch(batchId: String): Int
+
+    @Query("""
+UPDATE pos_kot_items
+SET kitchenPrinted = 1
+WHERE kotBatchId = :batchId
+AND kitchenPrintReq = 1
+AND kitchenPrinted = 0
+""")
+    suspend fun markBatchPrinted(batchId: String): Int
+
+    @Query("""
+SELECT * FROM pos_kot_items
+WHERE kotBatchId = :batchId
+ORDER BY createdAt ASC
+""")
+    suspend fun getAllItemsByBatchId(batchId: String): List<PosKotItemEntity>
 
     @Query("""
     SELECT * FROM pos_kot_items
@@ -254,6 +283,14 @@ AND status = 'PENDING'
     ORDER BY createdAt ASC
 """)
     suspend fun getItemsByBatchId(batchId: String): List<PosKotItemEntity>
+
+    @Query("""
+    SELECT * FROM pos_kot_items
+    ORDER BY createdAt ASC
+""")
+    suspend fun getItemsByBatchIdAll(): List<PosKotItemEntity>
+
+
     @Query("""
     SELECT * FROM pos_kot_items
     WHERE tableNo = :tableNo

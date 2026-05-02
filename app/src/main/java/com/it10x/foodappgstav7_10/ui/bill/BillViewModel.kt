@@ -401,6 +401,7 @@ class BillViewModel(
     // Payment + Order Creation
     // --------------------------------------------------------
 
+    private val paymentMutex = kotlinx.coroutines.sync.Mutex()
     fun payBill(
         payments: List<PaymentInput>,
         name: String,
@@ -414,14 +415,11 @@ class BillViewModel(
         val hasPaid = payments.any { it.mode in paidModes }
         val hasUnpaid = payments.any { it.mode in unpaidModes }
 
-        if (_isProcessing.value) {
-            sendEvent("Payment already in progress")
-            return
-        }
+
 
         viewModelScope.launch {
 
-            if (_isProcessing.value) {
+            if (!paymentMutex.tryLock()) {
                 sendEvent("Payment already in progress")
                 return@launch
             }
@@ -429,9 +427,8 @@ class BillViewModel(
 
             val outlet = outletDao.getOutlet()
             if (outlet == null) {
-                viewModelScope.launch {
-                    _toastEvent.emit("Outlet not configured")
-                }
+
+                _toastEvent.emit("Outlet not configured")
                 _isProcessing.value = false
                 return@launch
             }
@@ -844,6 +841,7 @@ class BillViewModel(
                     try {
                       //  tableKotSyncService.clearTableSnapshot(tableId)
                         SyncManagerProvider.get().addClearTable(tableId)
+                        kotRepository.deleteKotByTable(tableId)
                         Log.d("TABLE_SYNC", "✅ Table cleared after payment")
                     } catch (e: Exception) {
                         Log.e("TABLE_SYNC", "❌ Failed to clear table", e)
@@ -877,6 +875,9 @@ class BillViewModel(
                 sendEvent("Payment failed")
             }finally {
                 _isProcessing.value = false
+                if (paymentMutex.isLocked) {
+                    paymentMutex.unlock()
+                }
             }
 
         }

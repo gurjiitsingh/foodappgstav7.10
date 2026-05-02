@@ -87,7 +87,8 @@ class WaiterKitchenViewModel(
     )
 
     private val printerManager =
-        PrinterManager(app.applicationContext)
+        PrinterManager.getInstance(app.applicationContext)
+
 
     fun waiterCartTo_FireStore_Bill(
         cartList: List<PosCartEntity>,
@@ -378,8 +379,8 @@ class WaiterKitchenViewModel(
                     parentId = cart.parentId,
                     isVariant = cart.isVariant,
                     basePrice = cart.basePrice,
-                    finalPrice = 0.0,
-                    modifierTotal = 0.0,
+                    finalPrice = cart.finalPrice,
+                    modifierTotal = cart.modifierTotal,
                     quantity = cart.quantity,
                     taxRate = cart.taxRate,
                     taxType = cart.taxType,

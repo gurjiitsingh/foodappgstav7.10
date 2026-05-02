@@ -29,6 +29,8 @@ class PrintQueueManager(
             startWorker(channel)
         }
 
+        Log.e("QUEUE_INIT", "🔥 PrintQueueManager CREATED ${System.currentTimeMillis()}")
+
         scope.launch {
             loadPendingJobs()
         }

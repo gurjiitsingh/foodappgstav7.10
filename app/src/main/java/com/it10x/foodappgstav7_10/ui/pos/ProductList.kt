@@ -97,6 +97,7 @@ private fun ParentProductCard(
 ) {
 
     var showVariantDialog by remember { mutableStateOf(false) }
+    var showModifierDialog by remember { mutableStateOf(false) }
     val cartItems by cartViewModel.cart.collectAsState()
     val currentQty = cartItems
         .filter { it.tableId == tableNo && it.productId == product.id }
@@ -123,35 +124,29 @@ private fun ParentProductCard(
     }
     var modifierGroups by remember { mutableStateOf<List<ModifierGroupWithItems>>(emptyList()) }
 
-    LaunchedEffect(product.id) {
-        modifierGroups = modifierRepo.getModifiersForProduct(product.id)
+    var selectedVariantId by remember { mutableStateOf<String?>(null) }
 
-        Log.d("MOD_DEBUG", "Loaded groups: ${modifierGroups.size}")
+
+    val selectedSingle = remember { mutableStateMapOf<String, String>() }
+    val selectedMulti = remember { mutableStateMapOf<String, MutableList<String>>() }
+
+
+    // ✅ ADD IT HERE 👇 (RIGHT AFTER STATE)
+    LaunchedEffect(showVariantDialog, showModifierDialog) {
+        if (showVariantDialog || showModifierDialog) {
+            selectedVariantId = null
+            selectedSingle.clear()
+            selectedMulti.clear()
+        }
     }
 
-    var showModifierDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedVariantId, showModifierDialog) {
+        if (showModifierDialog || selectedVariantId != null) {
+            val baseId = selectedVariantId ?: product.id
+            modifierGroups = modifierRepo.getModifiersForProduct(baseId)
 
-    LaunchedEffect(showModifierDialog) {
-
-        val allGroups = db.modifierGroupDao().getAllGroups()
-        val allItems = db.modifierItemDao().getAllItems()
-
-        Log.d("MOD_ALL", "====== ALL GROUPS ======")
-        Log.d("MOD_ALL", "Total Groups: ${allGroups.size}")
-
-        allGroups.forEach {
-            Log.d("MOD_ALL", "Group: ${it.name} | id=${it.id}")
+            Log.d("MOD_DEBUG", "Loaded for baseId=$baseId size=${modifierGroups.size}")
         }
-
-        Log.d("MOD_ALL", "====== ALL ITEMS ======")
-        Log.d("MOD_ALL", "Total Items: ${allItems.size}")
-
-        allItems.forEach {
-            Log.d("MOD_ALL", "Item: ${it.name} | groupId=${it.groupId} | price=${it.price}")
-        }
-
-
-
     }
 
     Surface(
@@ -275,9 +270,13 @@ private fun ParentProductCard(
                             }
 
                             // ✅ 2. Product has modifiers → open modifier dialog
-                            modifierGroups.isNotEmpty() -> {
+//                            modifierGroups.isNotEmpty() -> {
+//                                showModifierDialog = true
+//                            }
+                            product.hasModifiers == true -> {
                                 showModifierDialog = true
                             }
+
 
                             // ✅ 3. Simple product → add directly
                             else -> {
@@ -311,10 +310,7 @@ private fun ParentProductCard(
 
     if (showVariantDialog || showModifierDialog) {
 
-        var selectedVariantId by remember { mutableStateOf<String?>(null) }
 
-        val selectedSingle = remember { mutableStateMapOf<String, String>() }
-        val selectedMulti = remember { mutableStateMapOf<String, MutableList<String>>() }
 
         // 🔥 Base product (variant OR parent)
         val baseProduct = variants.find { it.id == selectedVariantId } ?: product
@@ -324,11 +320,6 @@ private fun ParentProductCard(
 
         val selectedModifiersList = mutableListOf<CartModifier>()
 
-       // val modifiersJson = Gson().toJson(selectedModifiersList)
-        val modifiersJson = ModifierJsonHelper.toJson(selectedModifiersList)
-        LaunchedEffect(product.id) {
-            modifierGroups = modifierRepo.getModifiersForProduct(product.id)
-        }
 
         Dialog(
             onDismissRequest = {
