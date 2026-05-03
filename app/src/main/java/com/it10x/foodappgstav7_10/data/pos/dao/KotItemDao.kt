@@ -255,6 +255,7 @@ AND status = 'PENDING'
 UPDATE pos_kot_items
 SET kitchenPrinted = 1
 WHERE kotBatchId = :batchId
+AND kitchenPrintReq = 1
 AND kitchenPrinted = 0
 """)
     suspend fun markBatchKitchenPrintedBatch(batchId: String): Int
@@ -271,6 +272,7 @@ AND kitchenPrinted = 0
     @Query("""
 SELECT * FROM pos_kot_items
 WHERE kotBatchId = :batchId
+AND kitchenPrintReq = 1
 ORDER BY createdAt ASC
 """)
     suspend fun getAllItemsByBatchId(batchId: String): List<PosKotItemEntity>

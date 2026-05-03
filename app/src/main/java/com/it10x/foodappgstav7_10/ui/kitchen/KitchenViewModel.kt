@@ -360,17 +360,36 @@ class KitchenViewModel(
         }
     }
 
+//    @Transaction
+//    suspend fun lockAndFetchBatch(batchId: String): List<PosKotItemEntity> {
+//
+//        val updated = kotItemDao.markBatchKitchenPrintedBatch(batchId)
+//
+//        if (BuildConfig.DEBUG) {
+//            Log.e("LOCK_BATCH", "batch=$batchId updatedRows=$updated")
+//        }
+//        if (updated == 0) return emptyList()
+//
+//        return kotItemDao.getAllItemsByBatchId(batchId)
+//    }
+
+
     @Transaction
     suspend fun lockAndFetchBatch(batchId: String): List<PosKotItemEntity> {
 
+        // 1. fetch FIRST
+        val items = kotItemDao.getItemsByBatchId(batchId)
+
+        if (items.isEmpty()) return emptyList()
+
+        // 2. then mark as printed
         val updated = kotItemDao.markBatchKitchenPrintedBatch(batchId)
 
         if (BuildConfig.DEBUG) {
             Log.e("LOCK_BATCH", "batch=$batchId updatedRows=$updated")
         }
-        if (updated == 0) return emptyList()
 
-        return kotItemDao.getAllItemsByBatchId(batchId)
+        return items
     }
 
     fun replaceKotFromFirestoreWaiterListener(
