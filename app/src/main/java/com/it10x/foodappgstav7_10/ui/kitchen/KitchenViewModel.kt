@@ -33,6 +33,8 @@ import com.it10x.foodappgstav7_10.data.pos.manager.TableSyncManager
 import com.it10x.foodappgstav7_10.printer.ReceiptFormatter
 import kotlinx.coroutines.CoroutineScope
 
+import kotlinx.coroutines.flow.asStateFlow
+
 class KitchenViewModel(
     app: Application,
     private val tableId: String,
@@ -53,6 +55,9 @@ class KitchenViewModel(
 
     private val kotToBillUseCase =
         KotToBillUseCase(kotItemDao)
+
+    private val _isSending = MutableStateFlow(false)
+    val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
 
     val kotItems: StateFlow<List<PosKotItemEntity>> =
         kotItemDao.getAllKotItems()
@@ -118,15 +123,16 @@ class KitchenViewModel(
         appVersion: String?,
         role: String,
     ) {
-//FROM THE MAIN POS
-        //  logAllKotItems()
         viewModelScope.launch {
+
+            if (_isSending.value) return@launch   // ✅ prevent double trigger
+
+            _isSending.value = true
             _loading.value = true
 
-            // ✅ use sessionId as the real key for cart & KOT
             val sessionKey = sessionId
-            val tableId = tableNo!!
-            // ✅ FIX: Use sessionKey (for takeaway & delivery)
+            val tableId = tableNo   // ❌ removed !! (no crash risk)
+
             val cartList = repository.getCartItemsByTableId(tableId).first()
 
             if (cartList.isEmpty()) {
@@ -134,6 +140,7 @@ class KitchenViewModel(
                     "KITCHEN_DEBUG4",
                     "⚠️ No new items found for orderType=$orderType (sessionKey=$sessionKey)"
                 )
+                _isSending.value = false
                 _loading.value = false
                 return@launch
             }
@@ -152,19 +159,18 @@ class KitchenViewModel(
                 )
 
                 if (!kotSaved) {
-                    Log.e("KITCHEN_DEBUG4", " saveKotOnly() failed for session=$sessionKey")
+                    Log.e("KITCHEN_DEBUG4", "saveKotOnly() failed for session=$sessionKey")
                     return@launch
                 }
-
 
                 repository.clearCart(orderType, tableId)
                 tableSyncManager.syncCart(tableId, orderType)
                 tableSyncManager.syncBill(tableId, orderType)
 
-
             } catch (e: Exception) {
-                //  Log.e("KITCHEN_DEBUG", " Exception during placeOrder()", e)
+                e.printStackTrace()
             } finally {
+                _isSending.value = false
                 _loading.value = false
             }
         }
@@ -308,27 +314,27 @@ class KitchenViewModel(
 
                     val items = lockAndFetchBatch(batchId)
 
-                    val allItems = kotItemDao.getItemsByBatchIdAll()
-                    val grouped = allItems.groupBy { it.kotBatchId }
-                    Log.e("KOT_ALL", "========== ALL BATCHES ==========")
-                    grouped.forEach { (batchId, items) ->
-                        Log.e(
-                            "KOT_ALL",
-                            "Batch=$batchId size=${items.size} printed=${items.all { it.kitchenPrinted }}"
-                        )
-
-                        items.forEach {
-                            Log.e(
-                                "KOT_ALL_ITEM",
-                                "  → ${it.name} qty=${it.quantity} printed=${it.kitchenPrinted} time=${it.createdAt}"
-                            )
-                        }
-                    }
-
-                    Log.e("KOT_ALL", "=================================")
+     //               val allItems = kotItemDao.getItemsByBatchIdAll()
+         //           val grouped = allItems.groupBy { it.kotBatchId }
+//                    Log.e("KOT_ALL", "========== ALL BATCHES ==========")
+//                    grouped.forEach { (batchId, items) ->
+//                        Log.e(
+//                            "KOT_ALL",
+//                            "Batch=$batchId size=${items.size} printed=${items.all { it.kitchenPrinted }}"
+//                        )
+//
+//                        items.forEach {
+//                            Log.e(
+//                                "KOT_ALL_ITEM",
+//                                "  → ${it.name} qty=${it.quantity} printed=${it.kitchenPrinted} time=${it.createdAt}"
+//                            )
+//                        }
+//                    }
+//
+//                    Log.e("KOT_ALL", "=================================")
 
                     if (items.isNotEmpty()) {
-                        Log.e("PRINT_FLOW", "🔥 Printing batch=$batchId items=${items.size}")
+                    //    Log.e("PRINT_FLOW", "🔥 Printing batch=$batchId items=${items.size}")
                         printerManager.enqueueKitchen(
                             sessionKey = tableNo,
                             orderType = orderType,
