@@ -17,7 +17,6 @@ import com.it10x.foodappgstav7_10.data.pos.repository.OrderSequenceRepository
 import com.it10x.foodappgstav7_10.data.pos.repository.OutletRepository
 import com.it10x.foodappgstav7_10.data.pos.repository.POSOrdersRepository
 import com.it10x.foodappgstav7_10.data.pos.repository.POSPaymentRepository
-import com.it10x.foodappgstav7_10.printer.PrintOrderBuilder
 import com.it10x.foodappgstav7_10.printer.PrinterManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

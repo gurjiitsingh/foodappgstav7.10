@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 class OutletSyncViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo =
-        OutletSyncRepository(AppDatabaseProvider.get(app))
+        OutletSyncRepository(AppDatabaseProvider.get(app), app.applicationContext)
 
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing

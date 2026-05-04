@@ -378,11 +378,56 @@ class PrinterManager private constructor(
                     onResult(false)
                     return
                 }
-                BluetoothPrinter.printText(
-                    config.bluetoothAddress,
-                    text,
-                    onResult
-                )
+
+                try {
+                    // ✅ 1. Load logo from INTERNAL STORAGE (saved file)
+                    val logoFile = java.io.File(context.filesDir, "logo.png")
+
+                    val bitmap = if (logoFile.exists()) {
+                        android.graphics.BitmapFactory.decodeFile(logoFile.absolutePath)
+                    } else {
+                        null
+                    }
+
+                    // ✅ 2. Decide printer size
+                    val size = prefs.getPrinterSize(role) ?: "80mm"
+
+                    val targetWidth = if (size == "80mm") {
+                        200
+                    } else {
+                        100
+                    }
+
+                    // ✅ 3. Resize if bitmap exists
+                    val resizedLogo = bitmap?.let {
+                        BluetoothPrinter.resizeBitmap(it, targetWidth)
+                    }
+
+                    // ✅ 4. Print
+                    if (resizedLogo != null) {
+                        BluetoothPrinter.printLogoAndText(
+                            config.bluetoothAddress,
+                            resizedLogo,
+                            text,
+                            onResult
+                        )
+                    } else {
+                        // fallback if logo missing
+                        BluetoothPrinter.printText(
+                            config.bluetoothAddress,
+                            text,
+                            onResult
+                        )
+                    }
+
+                } catch (e: Exception) {
+                    // fallback safety
+                    BluetoothPrinter.printText(
+                        config.bluetoothAddress,
+                        text,
+                        onResult
+                    )
+                }
             }
 
             PrinterType.LAN -> {

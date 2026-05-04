@@ -10,7 +10,7 @@ import com.it10x.foodappgstav7_10.data.pos.viewmodel.POSOrdersViewModel
 import com.it10x.foodappgstav7_10.printer.PrinterManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import com.it10x.foodappgstav7_10.printer.PosReceiptBuilder
+
 class LocalOrderDetailViewModel(
     private val orderId: String,
     private val repository: POSOrdersRepository,

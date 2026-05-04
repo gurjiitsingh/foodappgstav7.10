@@ -30,6 +30,7 @@ data class OutletEntity(
     val phone2: String?,           // ⭐ already there
     val email: String?,            // ⭐ already there
     val web: String?,              // ⭐ NEW
+    val logoUrl: String?,
 
     // ---------- PRINTER ----------
     val printerWidth: Int,
