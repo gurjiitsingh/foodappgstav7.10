@@ -122,6 +122,9 @@ object USBPrinter {
                 // ✅ ESC/POS INIT
                 val init = byteArrayOf(0x1B, 0x40)
 
+                // 🔔 BEEP
+                val beep = byteArrayOf(0x1B, 0x42, 0x03, 0x02)
+
                 // ✅ FEED 3 LINES + FULL CUT (Safe for all printers)
                 val feedAndCut = byteArrayOf(
                     0x1B, 0x64, 0x03, // Feed 3 lines
@@ -131,7 +134,7 @@ object USBPrinter {
                 // ✅ Convert LF → CRLF
                 val safeText = text.replace("\n", "\r\n").toByteArray(Charsets.US_ASCII)
 
-                val data = init + safeText + feedAndCut
+                val data = init + beep + safeText + feedAndCut
 
                 val sent = conn.bulkTransfer(ep, data, data.size, 5000)
 
@@ -148,6 +151,123 @@ object USBPrinter {
         }
     }
 
+
+    fun printLogoAndText(
+        bitmap: android.graphics.Bitmap,
+        text: String,
+        onResult: (Boolean) -> Unit
+    ) {
+        val ep = outEndpoint
+        val conn = connection
+
+        if (ep == null || conn == null) {
+            Log.e(TAG, "USB printer not ready")
+            onResult(false)
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // INIT
+                val init = byteArrayOf(0x1B, 0x40)
+
+                // 🔔 BEEP
+                val beep = byteArrayOf(0x1B, 0x42, 0x03, 0x02)
+
+                // CENTER ALIGN
+                val center = byteArrayOf(0x1B, 0x61, 0x01)
+
+                // LEFT ALIGN
+                val left = byteArrayOf(0x1B, 0x61, 0x00)
+
+                // IMAGE
+                val imageBytes = convertBitmapToEscPos(bitmap)
+
+                // TEXT
+                val safeText = text
+                    .replace("\n", "\r\n")
+                    .toByteArray(Charsets.US_ASCII)
+
+                // FEED + CUT
+                val feedAndCut = byteArrayOf(
+                    0x1B, 0x64, 0x03,
+                    0x1D, 0x56, 0x01
+                )
+
+                // 🔥 FINAL DATA (no spacing)
+                val data = init +
+                        beep +
+                        center +
+                        imageBytes +
+                        left +
+                        safeText +
+                        feedAndCut
+
+                val sent = conn.bulkTransfer(ep, data, data.size, 5000)
+
+                withContext(Dispatchers.Main) {
+                    onResult(sent > 0)
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "USB print logo error", e)
+                withContext(Dispatchers.Main) {
+                    onResult(false)
+                }
+            }
+        }
+    }
+
+
+    private fun convertBitmapToEscPos(bitmap: android.graphics.Bitmap): ByteArray {
+        val width = bitmap.width
+        val height = bitmap.height
+
+        val bytes = ArrayList<Byte>()
+
+        for (y in 0 until height step 24) {
+
+            bytes.add(0x1B)
+            bytes.add(0x2A)
+            bytes.add(33)
+
+            bytes.add((width % 256).toByte())
+            bytes.add((width / 256).toByte())
+
+            for (x in 0 until width) {
+                for (k in 0 until 3) {
+
+                    var slice = 0
+
+                    for (b in 0 until 8) {
+                        val yPos = y + (k * 8) + b
+
+                        if (yPos < height) {
+                            val pixel = bitmap.getPixel(x, yPos)
+
+                            val r = (pixel shr 16) and 0xff
+                            val g = (pixel shr 8) and 0xff
+                            val bVal = pixel and 0xff
+
+                            val gray = (r + g + bVal) / 3
+
+                            if (gray < 128) {
+                                slice = slice or (1 shl (7 - b))
+                            }
+                        }
+                    }
+
+                    bytes.add(slice.toByte())
+                }
+            }
+
+            if (y + 24 < height) {
+                bytes.add(0x0A)
+            }
+        }
+
+        return bytes.toByteArray()
+    }
     // =================================================
     // DEVICE LIST
     // =================================================

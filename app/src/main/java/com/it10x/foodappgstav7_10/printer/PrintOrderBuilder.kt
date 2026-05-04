@@ -62,28 +62,7 @@ object PrintOrderBuilder {
         )
     }
 
-    // -------------------------
-    // MERGE MULTIPLE ORDERS (FINAL BILL)
-    // -------------------------
-    fun mergeOrders(
-        orders: List<PosOrderMasterEntity>
-    ): PosOrderMasterEntity {
 
-        require(orders.isNotEmpty()) { "Cannot merge empty orders list" }
-
-        val first = orders.first()
-
-        return first.copy(
-            id = "FINAL-${first.tableNo}",
-            itemTotal = orders.sumOf { it.itemTotal },
-            taxTotal = orders.sumOf { it.taxTotal },
-            discountTotal = orders.sumOf { it.discountTotal },
-            grandTotal = orders.sumOf { it.grandTotal },
-            orderStatus = "PAID",
-            paymentStatus = "PAID",
-            updatedAt = System.currentTimeMillis()
-        )
-    }
 
     // -------------------------
     // DATE FORMAT

@@ -9,38 +9,25 @@ import com.it10x.foodappgstav7_10.data.pos.dao.KotItemDao
 import com.it10x.foodappgstav7_10.data.pos.dao.OrderMasterDao
 import com.it10x.foodappgstav7_10.data.pos.dao.OrderProductDao
 import com.it10x.foodappgstav7_10.data.pos.dao.OutletDao
-import com.it10x.foodappgstav7_10.data.pos.entities.PosKotItemEntity
-import com.it10x.foodappgstav7_10.data.pos.entities.PosOrderItemEntity
-import com.it10x.foodappgstav7_10.data.pos.entities.PosOrderMasterEntity
-import com.it10x.foodappgstav7_10.data.pos.entities.PosOrderPaymentEntity
 import com.it10x.foodappgstav7_10.data.pos.repository.OrderSequenceRepository
 import com.it10x.foodappgstav7_10.data.pos.repository.OutletRepository
 import com.it10x.foodappgstav7_10.data.pos.repository.POSOrdersRepository
 import com.it10x.foodappgstav7_10.data.pos.repository.POSPaymentRepository
 import com.it10x.foodappgstav7_10.printer.PrinterManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.*
-import com.it10x.foodappgstav7_10.data.print.OutletMapper
-import com.it10x.foodappgstav7_10.ui.payment.PaymentInput
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import com.it10x.foodappgstav7_10.data.pos.dao.PosCustomerDao
 import com.it10x.foodappgstav7_10.data.pos.dao.PosCustomerLedgerDao
 import com.it10x.foodappgstav7_10.data.pos.entities.PosCustomerEntity
-import com.it10x.foodappgstav7_10.data.pos.entities.PosCustomerLedgerEntity
 import com.it10x.foodappgstav7_10.data.pos.repository.KotRepository
 
 import com.it10x.foodappgstav7_10.ui.Waiterbill.BillingItemUi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlin.math.pow
-import kotlin.math.roundToLong
+
 class WaiterBillViewModel(
     private val kotItemDao: KotItemDao,
     private val orderMasterDao: OrderMasterDao,

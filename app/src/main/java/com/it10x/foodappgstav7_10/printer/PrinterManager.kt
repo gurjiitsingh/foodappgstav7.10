@@ -380,31 +380,25 @@ class PrinterManager private constructor(
                 }
 
                 try {
-                    // ✅ 1. Load logo from INTERNAL STORAGE (saved file)
+                    val isKitchen = role == PrinterRole.KITCHEN
+
+                    val size = prefs.getPrinterSize(role) ?: "80mm"
+
                     val logoFile = java.io.File(context.filesDir, "logo.png")
 
                     val bitmap = if (logoFile.exists()) {
                         android.graphics.BitmapFactory.decodeFile(logoFile.absolutePath)
-                    } else {
-                        null
-                    }
+                    } else null
 
-                    // ✅ 2. Decide printer size
-                    val size = prefs.getPrinterSize(role) ?: "80mm"
+                    val targetWidth = if (size == "80mm") 384 else 384
 
-                    val targetWidth = if (size == "80mm") {
-                        200
-                    } else {
-                        100
-                    }
-
-                    // ✅ 3. Resize if bitmap exists
                     val resizedLogo = bitmap?.let {
-                        BluetoothPrinter.resizeBitmap(it, targetWidth)
+                        com.it10x.foodappgstav7_10.printer.bluetooth.BluetoothPrinter.resizeBitmap(it, targetWidth)
                     }
 
-                    // ✅ 4. Print
-                    if (resizedLogo != null) {
+                    // 🔥 MAIN LOGIC
+                    if (!isKitchen && resizedLogo != null) {
+                        // ✅ CUSTOMER PRINTER → WITH LOGO
                         BluetoothPrinter.printLogoAndText(
                             config.bluetoothAddress,
                             resizedLogo,
@@ -412,7 +406,7 @@ class PrinterManager private constructor(
                             onResult
                         )
                     } else {
-                        // fallback if logo missing
+                        // ✅ KITCHEN → TEXT ONLY
                         BluetoothPrinter.printText(
                             config.bluetoothAddress,
                             text,
@@ -421,7 +415,6 @@ class PrinterManager private constructor(
                     }
 
                 } catch (e: Exception) {
-                    // fallback safety
                     BluetoothPrinter.printText(
                         config.bluetoothAddress,
                         text,
@@ -435,12 +428,51 @@ class PrinterManager private constructor(
                     onResult(false)
                     return
                 }
-                LanPrinter.printText(
-                    config.ip,
-                    config.port,
-                    text,
-                    onResult
-                )
+
+                try {
+                    val isKitchen = role == PrinterRole.KITCHEN
+
+                    val size = prefs.getPrinterSize(role) ?: "80mm"
+
+                    val logoFile = java.io.File(context.filesDir, "logo.png")
+
+                    val bitmap = if (logoFile.exists()) {
+                        android.graphics.BitmapFactory.decodeFile(logoFile.absolutePath)
+                    } else null
+
+                    val targetWidth = if (size == "80mm") 384 else 384
+
+                    val resizedLogo = bitmap?.let {
+                        com.it10x.foodappgstav7_10.printer.bluetooth.BluetoothPrinter.resizeBitmap(it, targetWidth)
+                    }
+
+                    if (!isKitchen && resizedLogo != null) {
+                        // ✅ WITH LOGO (customer printer)
+                        LanPrinter.printLogoAndText(
+                            config.ip,
+                            config.port,
+                            resizedLogo,
+                            text,
+                            onResult
+                        )
+                    } else {
+                        // ✅ KITCHEN → TEXT ONLY
+                        LanPrinter.printText(
+                            config.ip,
+                            config.port,
+                            text,
+                            onResult
+                        )
+                    }
+
+                } catch (e: Exception) {
+                    LanPrinter.printText(
+                        config.ip,
+                        config.port,
+                        text,
+                        onResult
+                    )
+                }
             }
 
             PrinterType.USB -> {
@@ -448,13 +480,49 @@ class PrinterManager private constructor(
                     onResult(false)
                     return
                 }
-                USBPrinter.printText(
-                    text,
-                    onResult
-                )
 
+                try {
+                    val isKitchen = role == PrinterRole.KITCHEN
 
+                    // ✅ Load logo from internal storage
+                    val logoFile = java.io.File(context.filesDir, "logo.png")
 
+                    val bitmap = if (logoFile.exists()) {
+                        android.graphics.BitmapFactory.decodeFile(logoFile.absolutePath)
+                    } else {
+                        null
+                    }
+
+                    // ✅ Printer size
+                    val size = prefs.getPrinterSize(role) ?: "80mm"
+
+                    val targetWidth = if (size == "80mm") 384 else 384
+
+                    val resizedLogo = bitmap?.let {
+                        com.it10x.foodappgstav7_10.printer.bluetooth.BluetoothPrinter.resizeBitmap(it, targetWidth)
+                    }
+
+                    if (!isKitchen && resizedLogo != null) {
+                        // ✅ CUSTOMER → WITH LOGO
+                        USBPrinter.printLogoAndText(
+                            resizedLogo,
+                            text,
+                            onResult
+                        )
+                    } else {
+                        // ✅ KITCHEN → TEXT ONLY
+                        USBPrinter.printText(
+                            text,
+                            onResult
+                        )
+                    }
+
+                } catch (e: Exception) {
+                    USBPrinter.printText(
+                        text,
+                        onResult
+                    )
+                }
             }
 
             PrinterType.WIFI -> onResult(false)

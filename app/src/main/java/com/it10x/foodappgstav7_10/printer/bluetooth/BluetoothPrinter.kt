@@ -8,6 +8,11 @@ import java.io.OutputStream
 import java.util.UUID
 import android.graphics.Bitmap
 import android.graphics.Color
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
 object BluetoothPrinter {
 
     private const val TAG = "PRINT_BT"
@@ -125,7 +130,7 @@ object BluetoothPrinter {
         text: String,
         onResult: (Boolean) -> Unit
     ) {
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             var output: OutputStream? = null
             try {
                 val adapter = BluetoothAdapter.getDefaultAdapter()
@@ -148,6 +153,10 @@ object BluetoothPrinter {
                 // INIT
                 output.write(byteArrayOf(0x1B, 0x40))
 
+                // 🔔 BEEP (add here)
+                val beep = byteArrayOf(0x1B, 0x42, 0x03, 0x02)
+                output.write(beep)
+
 // CENTER
                 output.write(byteArrayOf(0x1B, 0x61, 0x01))
 
@@ -156,10 +165,10 @@ object BluetoothPrinter {
                 output.write(imageBytes)
 
 // SPACE
-       //         output.write(byteArrayOf(0x0A, 0x0A))
+                //         output.write(byteArrayOf(0x0A, 0x0A))
 
 // RESET
-     //           output.write(byteArrayOf(0x1B, 0x40))
+                //           output.write(byteArrayOf(0x1B, 0x40))
 
 // LEFT ALIGN
                 output.write(byteArrayOf(0x1B, 0x61, 0x00))
@@ -171,7 +180,7 @@ object BluetoothPrinter {
                     .replace("\n", "\r\n")
                     .toByteArray(Charsets.US_ASCII)
 
-               // output.write(safeText)
+                // output.write(safeText)
 
                 output.write(safeText)
 
@@ -185,15 +194,19 @@ object BluetoothPrinter {
                 Thread.sleep(300)
                 socket.close()
 
-                mainHandler.post { onResult(true) }
+                withContext(Dispatchers.Main) {
+                    onResult(true)
+                }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Print with logo failed", e)
-                mainHandler.post { onResult(false) }
+                withContext(Dispatchers.Main) {
+                    onResult(false)
+                }
             } finally {
                 try { output?.close() } catch (_: Exception) {}
             }
-        }.start()
+        }
     }
 
 
@@ -241,7 +254,9 @@ object BluetoothPrinter {
             }
 
             // line feed
-            bytes.add(0x0A)
+            if (y + 24 < height) {
+                bytes.add(0x0A)
+            }
         }
 
         return bytes.toByteArray()
