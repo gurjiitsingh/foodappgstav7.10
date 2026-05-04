@@ -72,13 +72,20 @@ fun USBPrinterScreen(role: PrinterRole) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            // highlight selected radio button
                             selectedDeviceId = device.deviceId
 
-// ✅ SAVE USB PRINTER FOR ROLE
-                            prefs.saveUSBPrinter(role, device.deviceName, device.deviceId)
+                            // ✅ save printer type
                             prefs.savePrinterType(role, PrinterType.USB)
 
-// ✅ TEST PRINT
+                            // ✅ save USB correctly (VERY IMPORTANT)
+                            prefs.saveUSBPrinter(
+                                role,
+                                device.vendorId,
+                                device.productId
+                            )
+
+                            // ✅ test print (same as before)
                             usbPrinterHelper.findAndPrint(
                                 device,
                                 "Test Print\n"

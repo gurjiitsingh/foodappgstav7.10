@@ -71,17 +71,17 @@ fun updatePrinterType(role: PrinterRole, type: PrinterType) {
     prefs.saveBluetoothPrinter(role, name, address)
 }
 
-    fun updateUSBPrinter(role: PrinterRole, device: UsbDevice?) {
-        selectedUSBDeviceMap[role]?.value = device
-
-        if (device != null) {
-            prefs.saveUSBPrinter(
-                role = role,
-                name = device.deviceName,
-                deviceId = device.deviceId
-            )
-        }
-    }
+//    fun updateUSBPrinter(role: PrinterRole, device: UsbDevice?) {
+//        selectedUSBDeviceMap[role]?.value = device
+//
+//        if (device != null) {
+//            prefs.saveUSBPrinter(
+//                role,
+//                device.vendorId,
+//                device.productId
+//            )
+//        }
+//    }
     
 
     fun updateLanIP(role: PrinterRole, ip: String) {

@@ -37,15 +37,19 @@ object PrinterRestoreManager {
                         printer.macAddress ?: ""
                     )
                 }
-
                 "USB" -> {
-                    prefs.savePrinterType(role, PrinterType.USB)
-                    prefs.saveUSBPrinter(
-                        role,
-                        printer.printerName,
-                        printer.deviceId?.toIntOrNull() ?: -1
-                    )
+                    // ❌ Do NOT restore USB from DB
+                    // USB must be selected manually from device list
                 }
+
+//                "USB" -> {
+//                    prefs.savePrinterType(role, PrinterType.USB)
+//                    prefs.saveUSBPrinter(
+//                        role,
+//                        device.vendorId,
+//                        device.productId
+//                    )
+//                }
             }
         }
     }

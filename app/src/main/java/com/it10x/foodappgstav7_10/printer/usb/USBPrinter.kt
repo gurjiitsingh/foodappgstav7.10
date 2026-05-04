@@ -1,6 +1,7 @@
 package com.it10x.foodappgstav7_10.printer.usb
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.hardware.usb.*
 import android.util.Log
 import com.it10x.foodappgstav7_10.usb.USBPermissionHelper
@@ -95,9 +96,9 @@ object USBPrinter {
 
         """.trimIndent()
 
-            printText(testText) { success ->
-                onResult(success)
-            }
+//            printText(testText) { success ->
+//                onResult(success)
+//            }
         }
     }
 
@@ -105,47 +106,53 @@ object USBPrinter {
     // CORE PRINT (ORDER / AUTO)
     // =================================================
     fun printText(
+        context: Context,
+        device: UsbDevice,
         text: String,
         onResult: (Boolean) -> Unit
     ) {
-        val ep = outEndpoint
-        val conn = connection
+        init(context, device) { ready ->
 
-        if (ep == null || conn == null) {
-            Log.e(TAG, "USB printer not ready")
-            onResult(false)
-            return
-        }
+            if (!ready) {
+                onResult(false)
+                return@init
+            }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                // ✅ ESC/POS INIT
-                val init = byteArrayOf(0x1B, 0x40)
+            val ep = outEndpoint
+            val conn = connection
 
-                // 🔔 BEEP
-                val beep = byteArrayOf(0x1B, 0x42, 0x03, 0x02)
+            if (ep == null || conn == null) {
+                Log.e(TAG, "USB printer not ready AFTER INIT")
+                onResult(false)
+                return@init
+            }
 
-                // ✅ FEED 3 LINES + FULL CUT (Safe for all printers)
-                val feedAndCut = byteArrayOf(
-                    0x1B, 0x64, 0x03, // Feed 3 lines
-                    0x1D, 0x56, 0x01  // Full cut
-                )
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val init = byteArrayOf(0x1B, 0x40)
+                    val beep = byteArrayOf(0x1B, 0x42, 0x03, 0x02)
 
-                // ✅ Convert LF → CRLF
-                val safeText = text.replace("\n", "\r\n").toByteArray(Charsets.US_ASCII)
+                    val feedAndCut = byteArrayOf(
+                        0x1B, 0x64, 0x03,
+                        0x1D, 0x56, 0x01
+                    )
 
-                val data = init + beep + safeText + feedAndCut
+                    val safeText = text.replace("\n", "\r\n")
+                        .toByteArray(Charsets.US_ASCII)
 
-                val sent = conn.bulkTransfer(ep, data, data.size, 5000)
+                    val data = init + beep + safeText + feedAndCut
 
-                withContext(Dispatchers.Main) {
-                    onResult(sent > 0)
-                }
+                    val sent = conn.bulkTransfer(ep, data, data.size, 5000)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "USB print error", e)
-                withContext(Dispatchers.Main) {
-                    onResult(false)
+                    withContext(Dispatchers.Main) {
+                        onResult(sent > 0)
+                    }
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "USB print error", e)
+                    withContext(Dispatchers.Main) {
+                        onResult(false)
+                    }
                 }
             }
         }
@@ -153,66 +160,79 @@ object USBPrinter {
 
 
     fun printLogoAndText(
-        bitmap: android.graphics.Bitmap,
+        context: Context,
+        device: UsbDevice,
+        bitmap: Bitmap,
         text: String,
         onResult: (Boolean) -> Unit
     ) {
-        val ep = outEndpoint
-        val conn = connection
 
-        if (ep == null || conn == null) {
-            Log.e(TAG, "USB printer not ready")
-            onResult(false)
-            return
-        }
+        // ✅ ALWAYS INIT FIRST
+        init(context, device) { ready ->
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                // INIT
-                val init = byteArrayOf(0x1B, 0x40)
+            if (!ready) {
+                Log.e(TAG, "USB init failed")
+                onResult(false)
+                return@init
+            }
 
-                // 🔔 BEEP
-                val beep = byteArrayOf(0x1B, 0x42, 0x03, 0x02)
+            val ep = outEndpoint
+            val conn = connection
 
-                // CENTER ALIGN
-                val center = byteArrayOf(0x1B, 0x61, 0x01)
+            if (ep == null || conn == null) {
+                Log.e(TAG, "USB printer not ready AFTER INIT")
+                onResult(false)
+                return@init
+            }
 
-                // LEFT ALIGN
-                val left = byteArrayOf(0x1B, 0x61, 0x00)
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    // INIT
+                    val init = byteArrayOf(0x1B, 0x40)
 
-                // IMAGE
-                val imageBytes = convertBitmapToEscPos(bitmap)
+                    // 🔔 BEEP
+                    val beep = byteArrayOf(0x1B, 0x42, 0x03, 0x02)
 
-                // TEXT
-                val safeText = text
-                    .replace("\n", "\r\n")
-                    .toByteArray(Charsets.US_ASCII)
+                    // CENTER ALIGN
+                    val center = byteArrayOf(0x1B, 0x61, 0x01)
 
-                // FEED + CUT
-                val feedAndCut = byteArrayOf(
-                    0x1B, 0x64, 0x03,
-                    0x1D, 0x56, 0x01
-                )
+                    // LEFT ALIGN
+                    val left = byteArrayOf(0x1B, 0x61, 0x00)
 
-                // 🔥 FINAL DATA (no spacing)
-                val data = init +
-                        beep +
-                        center +
-                        imageBytes +
-                        left +
-                        safeText +
-                        feedAndCut
+                    // IMAGE
+                    val imageBytes = convertBitmapToEscPos(bitmap)
 
-                val sent = conn.bulkTransfer(ep, data, data.size, 5000)
+                    // TEXT
+                    val safeText = text
+                        .replace("\n", "\r\n")
+                        .toByteArray(Charsets.US_ASCII)
 
-                withContext(Dispatchers.Main) {
-                    onResult(sent > 0)
-                }
+                    // FEED + CUT
+                    val feedAndCut = byteArrayOf(
+                        0x1B, 0x64, 0x03,
+                        0x1D, 0x56, 0x01
+                    )
 
-            } catch (e: Exception) {
-                Log.e(TAG, "USB print logo error", e)
-                withContext(Dispatchers.Main) {
-                    onResult(false)
+                    // 🔥 FINAL DATA
+                    val data = init +
+                            beep +
+                            center +
+                            imageBytes +
+                            left +
+                            safeText +
+                            feedAndCut
+
+                    val sent = conn.bulkTransfer(ep, data, data.size, 5000)
+
+                    withContext(Dispatchers.Main) {
+                        onResult(sent > 0)
+                    }
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "USB print logo error", e)
+                    withContext(Dispatchers.Main) {
+                        onResult(false)
+                    }
                 }
             }
         }

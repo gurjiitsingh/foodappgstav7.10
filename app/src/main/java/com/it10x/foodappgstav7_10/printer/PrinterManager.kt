@@ -60,7 +60,7 @@ class PrinterManager private constructor(
 
 
     fun enqueuePrint(role: PrinterRole, text: String) {
-        Log.e("PRINT_DEBUG", "🔥 enqueuePrint CALLED role=$role")
+       // Log.e("PRINT_DEBUG", "🔥 enqueuePrint CALLED role=$role")
         scope.launch {
             queueManager.enqueue(role, text)
         }
@@ -476,7 +476,31 @@ class PrinterManager private constructor(
             }
 
             PrinterType.USB -> {
-                val device = config.usbDevice ?: run {
+
+                val usbManager = context.getSystemService(Context.USB_SERVICE) as android.hardware.usb.UsbManager
+
+                val saved = prefs.getUSBPrinter(role)
+
+                if (saved == null) {
+                    Log.e("USB", "No saved USB printer")
+                    onResult(false)
+                    return
+                }
+
+                val (vendorId, productId) = saved
+
+                val device = usbManager.deviceList.values.find {
+                    it.vendorId == vendorId && it.productId == productId
+                }
+
+                if (device == null) {
+                    Log.e("USB", "Device not found")
+                    onResult(false)
+                    return
+                }
+
+                if (!usbManager.hasPermission(device)) {
+                    Log.e("USB", "No permission")
                     onResult(false)
                     return
                 }
@@ -484,44 +508,39 @@ class PrinterManager private constructor(
                 try {
                     val isKitchen = role == PrinterRole.KITCHEN
 
-                    // ✅ Load logo from internal storage
                     val logoFile = java.io.File(context.filesDir, "logo.png")
 
                     val bitmap = if (logoFile.exists()) {
                         android.graphics.BitmapFactory.decodeFile(logoFile.absolutePath)
-                    } else {
-                        null
-                    }
+                    } else null
 
-                    // ✅ Printer size
                     val size = prefs.getPrinterSize(role) ?: "80mm"
-
                     val targetWidth = if (size == "80mm") 384 else 384
 
                     val resizedLogo = bitmap?.let {
-                        com.it10x.foodappgstav7_10.printer.bluetooth.BluetoothPrinter.resizeBitmap(it, targetWidth)
+                        BluetoothPrinter.resizeBitmap(it, targetWidth)
                     }
 
                     if (!isKitchen && resizedLogo != null) {
-                        // ✅ CUSTOMER → WITH LOGO
                         USBPrinter.printLogoAndText(
+                            context,
+                            device,
                             resizedLogo,
                             text,
                             onResult
                         )
                     } else {
-                        // ✅ KITCHEN → TEXT ONLY
                         USBPrinter.printText(
+                            context,
+                            device,
                             text,
                             onResult
                         )
                     }
 
                 } catch (e: Exception) {
-                    USBPrinter.printText(
-                        text,
-                        onResult
-                    )
+                    Log.e("USB", "Print failed", e)
+                    onResult(false)
                 }
             }
 
@@ -620,12 +639,40 @@ class PrinterManager private constructor(
             }
 
             PrinterType.USB -> {
-                val device = config.usbDevice ?: run {
+
+                val usbManager = context.getSystemService(Context.USB_SERVICE) as android.hardware.usb.UsbManager
+
+                val saved = prefs.getUSBPrinter(role)
+
+                if (saved == null) {
+                    Log.e("PRINT_NEW", "No saved USB printer")
+                    onResult(false)
+                    return
+                }
+
+                val (vendorId, productId) = saved
+
+                val device = usbManager.deviceList.values.find {
+                    it.vendorId == vendorId && it.productId == productId
+                }
+
+                if (device == null) {
                     Log.e("PRINT_NEW", "USB device not found")
                     onResult(false)
                     return
                 }
+
+                if (!usbManager.hasPermission(device)) {
+                    Log.e("PRINT_NEW", "USB permission denied")
+                    onResult(false)
+                    return
+                }
+
+                // ✅ CORRECT CALL (with device)
                 USBPrinter.printText(
+                    context,
+                    device,
+
                     receiptText,
                     onResult
                 )
@@ -712,14 +759,44 @@ class PrinterManager private constructor(
             }
 
             PrinterType.USB -> {
-                val device = config.usbDevice ?: run {
+
+                val usbManager = context.getSystemService(Context.USB_SERVICE) as android.hardware.usb.UsbManager
+
+                val saved = prefs.getUSBPrinter(role)
+
+                if (saved == null) {
+                    Log.e("PRINT_NEW", "No saved USB printer")
+                    onResult(false)
+                    return
+                }
+
+                val (vendorId, productId) = saved
+
+                val device = usbManager.deviceList.values.find {
+                    it.vendorId == vendorId && it.productId == productId
+                }
+
+                if (device == null) {
                     Log.e("PRINT_NEW", "USB device not found")
                     onResult(false)
                     return
                 }
+
+                if (!usbManager.hasPermission(device)) {
+                    Log.e("PRINT_NEW", "USB permission denied")
+                    onResult(false)
+                    return
+                }
+
+                // ✅ CORRECT CALL (with device)
                 USBPrinter.printText(
+                    context,
+                    device,
+
                     receiptText,
                     onResult
+
+
                 )
             }
 
@@ -786,18 +863,58 @@ class PrinterManager private constructor(
                 )
             }
 
+
             PrinterType.USB -> {
-                val device = config.usbDevice ?: run {
+
+                val usbManager = context.getSystemService(Context.USB_SERVICE) as android.hardware.usb.UsbManager
+
+                val saved = prefs.getUSBPrinter(role)
+
+                if (saved == null) {
+                    Log.e("PRINT_NEW", "No saved USB printer")
                     onResult(false)
                     return
                 }
+
+                val (vendorId, productId) = saved
+
+                val device = usbManager.deviceList.values.find {
+                    it.vendorId == vendorId && it.productId == productId
+                }
+
+                if (device == null) {
+                    Log.e("PRINT_NEW", "USB device not found")
+                    onResult(false)
+                    return
+                }
+
+                if (!usbManager.hasPermission(device)) {
+                    Log.e("PRINT_NEW", "USB permission denied")
+                    onResult(false)
+                    return
+                }
+
+                // ✅ CORRECT CALL (with device)
                 USBPrinter.printText(
+                    context,
+                    device,
                     text,
                     onResult
                 )
-
-
             }
+
+//            PrinterType.USB -> {
+//                val device = config.usbDevice ?: run {
+//                    onResult(false)
+//                    return
+//                }
+//                USBPrinter.printText(
+//                    text,
+//                    onResult
+//                )
+//
+//
+//            }
 
             PrinterType.WIFI -> onResult(false)
         }
